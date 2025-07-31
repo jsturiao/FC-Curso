@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # Serviço único para testes Clean Architecture
+  clean-architecture:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clean-architecture
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+    working_dir: /app
+    command: npm test
