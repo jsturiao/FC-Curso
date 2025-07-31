@@ -1,0 +1,45 @@
+# Dependências
+node_modules
+npm-debug.log*
+
+# Arquivos de runtime
+*.log
+logs
+
+# Arquivos temporários
+.tmp
+.cache
+
+# Arquivos de IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de build
+dist
+build
+
+# Arquivos de teste
+coverage
+*.lcov
+
+# Arquivos de configuração local
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+
+# README
+README.md

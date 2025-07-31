@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Serviço principal da aplicação DDD Patterns
+  ddd-patterns:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ddd-patterns-app
+    volumes:
+      # Volume para desenvolvimento com hot reload
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+    working_dir: /app
+    command: npm run test
+    networks:
+      - ddd-network
+
+  # Serviço para executar testes específicos
+  ddd-patterns-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ddd-patterns-test
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+    working_dir: /app
+    # Comando personalizado pode ser sobrescrito na execução
+    command: npm test
+    networks:
+      - ddd-network
+
+  # Serviço para modo interativo/desenvolvimento
+  ddd-patterns-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ddd-patterns-dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    working_dir: /app
+    command: /bin/sh
+    stdin_open: true
+    tty: true
+    networks:
+      - ddd-network
+
+networks:
+  ddd-network:
+    driver: bridge
