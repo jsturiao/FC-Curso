@@ -1,0 +1,126 @@
+{
+  "exchanges": [
+    {
+      "name": "ecommerce.events",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false
+    },
+    {
+      "name": "ecommerce.notifications",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false
+    },
+    {
+      "name": "ecommerce.dlx",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false
+    }
+  ],
+  "queues": [
+    {
+      "name": "orders.created",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "ecommerce.dlx",
+        "x-dead-letter-routing-key": "orders.created.failed",
+        "x-message-ttl": 30000
+      }
+    },
+    {
+      "name": "payments.process",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "ecommerce.dlx",
+        "x-dead-letter-routing-key": "payments.process.failed",
+        "x-message-ttl": 30000
+      }
+    },
+    {
+      "name": "inventory.reserve",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "ecommerce.dlx",
+        "x-dead-letter-routing-key": "inventory.reserve.failed",
+        "x-message-ttl": 30000
+      }
+    },
+    {
+      "name": "notifications.send",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "ecommerce.dlx",
+        "x-dead-letter-routing-key": "notifications.send.failed",
+        "x-message-ttl": 30000
+      }
+    },
+    {
+      "name": "dlq.orders.created.failed",
+      "durable": true,
+      "auto_delete": false
+    },
+    {
+      "name": "dlq.payments.process.failed",
+      "durable": true,
+      "auto_delete": false
+    },
+    {
+      "name": "dlq.inventory.reserve.failed",
+      "durable": true,
+      "auto_delete": false
+    },
+    {
+      "name": "dlq.notifications.send.failed",
+      "durable": true,
+      "auto_delete": false
+    }
+  ],
+  "bindings": [
+    {
+      "source": "ecommerce.events",
+      "destination": "orders.created",
+      "routing_key": "order.created"
+    },
+    {
+      "source": "ecommerce.events",
+      "destination": "payments.process",
+      "routing_key": "order.created"
+    },
+    {
+      "source": "ecommerce.events",
+      "destination": "inventory.reserve",
+      "routing_key": "order.created"
+    },
+    {
+      "source": "ecommerce.notifications",
+      "destination": "notifications.send",
+      "routing_key": ""
+    },
+    {
+      "source": "ecommerce.dlx",
+      "destination": "dlq.orders.created.failed",
+      "routing_key": "orders.created.failed"
+    },
+    {
+      "source": "ecommerce.dlx",
+      "destination": "dlq.payments.process.failed",
+      "routing_key": "payments.process.failed"
+    },
+    {
+      "source": "ecommerce.dlx",
+      "destination": "dlq.inventory.reserve.failed",
+      "routing_key": "inventory.reserve.failed"
+    },
+    {
+      "source": "ecommerce.dlx",
+      "destination": "dlq.notifications.send.failed",
+      "routing_key": "notifications.send.failed"
+    }
+  ]
+}

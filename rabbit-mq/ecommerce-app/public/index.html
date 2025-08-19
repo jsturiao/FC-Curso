@@ -1,389 +1,553 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-commerce RabbitMQ Dashboard</title>
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    
-    <style>
-        .message-item {
-            border-left: 4px solid #007bff;
-            margin-bottom: 0.5rem;
-            transition: all 0.3s ease;
-        }
-        
-        .message-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .message-item.order-event {
-            border-left-color: #28a745;
-        }
-        
-        .message-item.payment-event {
-            border-left-color: #ffc107;
-        }
-        
-        .message-item.inventory-event {
-            border-left-color: #dc3545;
-        }
-        
-        .message-item.notification-event {
-            border-left-color: #6f42c1;
-        }
-        
-        .status-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-        }
-        
-        .stats-card {
-            transition: transform 0.2s ease;
-        }
-        
-        .stats-card:hover {
-            transform: translateY(-2px);
-        }
-        
-        .message-flow {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #dee2e6;
-            border-radius: 0.5rem;
-        }
-        
-        .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-        
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        
-        .json-preview {
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            max-height: 150px;
-            overflow-y: auto;
-            background-color: #f8f9fa;
-        }
-    </style>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>🐰 E-commerce RabbitMQ Dashboard</title>
+
+	<!-- Bootstrap 5 CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<!-- Bootstrap Icons -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+	<!-- Chart.js for real-time charts -->
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+	<style>
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background-color: #f8f9fa;
+		}
+
+		.navbar-brand {
+			font-weight: 600;
+			font-size: 1.5rem;
+		}
+
+		.stats-card {
+			transition: all 0.3s ease;
+			border: none;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		}
+
+		.stats-card:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		}
+
+		.message-flow-diagram {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 20px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border-radius: 15px;
+			color: white;
+			margin-bottom: 20px;
+		}
+
+		.module-box {
+			background: rgba(255, 255, 255, 0.1);
+			backdrop-filter: blur(10px);
+			border-radius: 12px;
+			padding: 15px;
+			text-align: center;
+			min-width: 120px;
+			transition: all 0.3s ease;
+		}
+
+		.module-box:hover {
+			background: rgba(255, 255, 255, 0.2);
+			transform: scale(1.05);
+		}
+
+		.flow-arrow {
+			font-size: 2rem;
+			margin: 0 15px;
+			animation: pulse 2s infinite;
+		}
+
+		@keyframes pulse {
+			0% {
+				opacity: 0.6;
+			}
+
+			50% {
+				opacity: 1;
+			}
+
+			100% {
+				opacity: 0.6;
+			}
+		}
+
+		.message-item {
+			border-left: 4px solid #007bff;
+			margin-bottom: 0.5rem;
+			transition: all 0.3s ease;
+			background: white;
+			border-radius: 8px;
+			padding: 12px;
+		}
+
+		.message-item:hover {
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+			transform: translateX(5px);
+		}
+
+		.message-item.order-created {
+			border-left-color: #28a745;
+		}
+
+		.message-item.payment-processed {
+			border-left-color: #ffc107;
+		}
+
+		.message-item.inventory-reserved {
+			border-left-color: #dc3545;
+		}
+
+		.message-item.notification-sent {
+			border-left-color: #6f42c1;
+		}
+
+		.queue-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px;
+			margin-bottom: 8px;
+			background: white;
+			border-radius: 8px;
+			border-left: 4px solid #17a2b8;
+			transition: all 0.3s ease;
+		}
+
+		.queue-item:hover {
+			background: #f8f9fa;
+			transform: translateX(5px);
+		}
+
+		.queue-count {
+			font-weight: 600;
+			min-width: 40px;
+			text-align: center;
+		}
+
+		.timeline {
+			max-height: 400px;
+			overflow-y: auto;
+		}
+
+		.timeline-item {
+			border-left: 3px solid #dee2e6;
+			padding-left: 20px;
+			margin-bottom: 20px;
+			position: relative;
+		}
+
+		.timeline-item::before {
+			content: '';
+			position: absolute;
+			left: -8px;
+			top: 5px;
+			width: 13px;
+			height: 13px;
+			border-radius: 50%;
+			background: #007bff;
+		}
+
+		.timeline-item.success::before {
+			background: #28a745;
+		}
+
+		.timeline-item.warning::before {
+			background: #ffc107;
+		}
+
+		.timeline-item.error::before {
+			background: #dc3545;
+		}
+
+		.real-time-indicator {
+			width: 10px;
+			height: 10px;
+			background: #28a745;
+			border-radius: 50%;
+			display: inline-block;
+			margin-right: 8px;
+			animation: blink 1s infinite;
+		}
+
+		@keyframes blink {
+
+			0%,
+			50% {
+				opacity: 1;
+			}
+
+			51%,
+			100% {
+				opacity: 0.3;
+			}
+		}
+
+		.chart-container {
+			position: relative;
+			height: 300px;
+			background: white;
+			border-radius: 12px;
+			padding: 20px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		}
+
+		.message-flow {
+			height: 400px;
+			overflow-y: auto;
+			border: 1px solid #dee2e6;
+			border-radius: 0.5rem;
+		}
+
+		.connection-status {
+			position: fixed;
+			top: 20px;
+			right: 20px;
+			z-index: 1000;
+		}
+
+		.pulse {
+			animation: pulse 2s infinite;
+		}
+
+		@keyframes pulse {
+			0% {
+				opacity: 1;
+			}
+
+			50% {
+				opacity: 0.5;
+			}
+
+			100% {
+				opacity: 1;
+			}
+		}
+
+		.json-preview {
+			font-family: 'Courier New', monospace;
+			font-size: 0.85rem;
+			max-height: 150px;
+			overflow-y: auto;
+			background-color: #f8f9fa;
+		}
+	</style>
 </head>
+}
+</style>
+</head>
+
 <body class="bg-light">
-    <!-- Connection Status -->
-    <div class="connection-status">
-        <span id="connectionStatus" class="badge bg-secondary pulse">
-            <i class="bi bi-wifi-off"></i> Conectando...
-        </span>
-    </div>
+	<!-- Connection Status -->
+	<div class="connection-status">
+		<span id="connectionStatus" class="badge bg-secondary pulse">
+			<i class="bi bi-wifi-off"></i> Conectando...
+		</span>
+	</div>
 
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <i class="bi bi-diagram-3"></i> E-commerce RabbitMQ Dashboard
-            </a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text">
-                    <i class="bi bi-clock"></i> <span id="currentTime"></span>
-                </span>
-            </div>
-        </div>
-    </nav>
+	<!-- Navigation -->
+	<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+		<div class="container-fluid">
+			<a class="navbar-brand" href="#">
+				<i class="bi bi-diagram-3"></i> E-commerce RabbitMQ Dashboard
+			</a>
+			<div class="navbar-nav ms-auto">
+				<span class="navbar-text">
+					<i class="bi bi-clock"></i> <span id="currentTime"></span>
+				</span>
+			</div>
+		</div>
+	</nav>
 
-    <div class="container-fluid mt-4">
-        <!-- Statistics Row -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card stats-card border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-title text-muted mb-0">Total de Mensagens</h6>
-                                <h3 class="mb-0" id="totalMessages">0</h3>
-                            </div>
-                            <i class="bi bi-envelope text-primary" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="card stats-card border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-title text-muted mb-0">Pedidos Ativos</h6>
-                                <h3 class="mb-0" id="activeOrders">0</h3>
-                            </div>
-                            <i class="bi bi-cart text-success" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="card stats-card border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-title text-muted mb-0">Pagamentos</h6>
-                                <h3 class="mb-0" id="totalPayments">0</h3>
-                            </div>
-                            <i class="bi bi-credit-card text-warning" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="card stats-card border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-title text-muted mb-0">Notificações</h6>
-                                <h3 class="mb-0" id="totalNotifications">0</h3>
-                            </div>
-                            <i class="bi bi-bell text-info" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+	<div class="container-fluid mt-4">
+		<!-- Statistics Row -->
+		<div class="row mb-4">
+			<div class="col-md-3">
+				<div class="card stats-card border-0 shadow-sm">
+					<div class="card-body text-center">
+						<div class="d-flex justify-content-between align-items-center">
+							<div>
+								<h6 class="card-title text-muted mb-0">Total de Mensagens</h6>
+								<h3 class="mb-0" id="totalMessages">0</h3>
+							</div>
+							<i class="bi bi-envelope text-primary" style="font-size: 2rem;"></i>
+						</div>
+					</div>
+				</div>
+			</div>
 
-        <!-- Main Content Row -->
-        <div class="row">
-            <!-- Message Flow -->
-            <div class="col-lg-8">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="bi bi-activity"></i> Fluxo de Mensagens em Tempo Real
-                        </h5>
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="clearMessages()">
-                                <i class="bi bi-trash"></i> Limpar
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="pauseMessages()" id="pauseBtn">
-                                <i class="bi bi-pause"></i> Pausar
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="message-flow p-3" id="messageFlow">
-                            <div class="text-center text-muted">
-                                <i class="bi bi-hourglass-split"></i>
-                                <p>Aguardando mensagens...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+			<div class="col-md-3">
+				<div class="card stats-card border-0 shadow-sm">
+					<div class="card-body text-center">
+						<div class="d-flex justify-content-between align-items-center">
+							<div>
+								<h6 class="card-title text-muted mb-0">Pedidos Ativos</h6>
+								<h3 class="mb-0" id="activeOrders">0</h3>
+							</div>
+							<i class="bi bi-cart text-success" style="font-size: 2rem;"></i>
+						</div>
+					</div>
+				</div>
+			</div>
 
-                <!-- Test Actions -->
-                <div class="card border-0 shadow-sm mt-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-play-circle"></i> Ações de Teste
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <button class="btn btn-success w-100 mb-2" onclick="createTestOrder()">
-                                    <i class="bi bi-plus-circle"></i> Criar Pedido de Teste
-                                </button>
-                                <button class="btn btn-warning w-100 mb-2" onclick="createTestPayment()">
-                                    <i class="bi bi-credit-card"></i> Criar Pagamento
-                                </button>
-                                <button class="btn btn-primary w-100 mb-2" onclick="processTestPayment()">
-                                    <i class="bi bi-play"></i> Processar Pagamento
-                                </button>
-                                <button class="btn btn-secondary w-100 mb-2" onclick="sendTestNotification()">
-                                    <i class="bi bi-bell"></i> Enviar Notificação
-                                </button>
-                            </div>
-                            <div class="col-md-6">
-                                <button class="btn btn-info w-100 mb-2" onclick="createTestProduct()">
-                                    <i class="bi bi-box-seam"></i> Criar Produto
-                                </button>
-                                <button class="btn btn-outline-info w-100 mb-2" onclick="addTestStock()">
-                                    <i class="bi bi-plus-square"></i> Adicionar Estoque
-                                </button>
-                                <button class="btn btn-outline-warning w-100 mb-2" onclick="reserveTestStock()">
-                                    <i class="bi bi-lock"></i> Reservar Estoque
-                                </button>
-                                <button class="btn btn-danger w-100 mb-2" onclick="refundTestPayment()">
-                                    <i class="bi bi-arrow-counterclockwise"></i> Reembolsar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+			<div class="col-md-3">
+				<div class="card stats-card border-0 shadow-sm">
+					<div class="card-body text-center">
+						<div class="d-flex justify-content-between align-items-center">
+							<div>
+								<h6 class="card-title text-muted mb-0">Pagamentos</h6>
+								<h3 class="mb-0" id="totalPayments">0</h3>
+							</div>
+							<i class="bi bi-credit-card text-warning" style="font-size: 2rem;"></i>
+						</div>
+					</div>
+				</div>
+			</div>
 
-            <!-- Sidebar -->
-            <div class="col-lg-4">
-                <!-- System Status -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-white">
-                        <h6 class="mb-0">
-                            <i class="bi bi-gear"></i> Status do Sistema
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>RabbitMQ</span>
-                            <span class="badge bg-success" id="rabbitmqStatus">
-                                <i class="bi bi-check-circle"></i> Online
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>MongoDB</span>
-                            <span class="badge bg-success" id="mongoStatus">
-                                <i class="bi bi-check-circle"></i> Online
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Orders Module</span>
-                            <span class="badge bg-success" id="ordersStatus">
-                                <i class="bi bi-check-circle"></i> Ativo
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span>WebSocket</span>
-                            <span class="badge bg-secondary" id="websocketStatus">
-                                <i class="bi bi-wifi-off"></i> Desconectado
-                            </span>
-                        </div>
-                    </div>
-                </div>
+			<div class="col-md-3">
+				<div class="card stats-card border-0 shadow-sm">
+					<div class="card-body text-center">
+						<div class="d-flex justify-content-between align-items-center">
+							<div>
+								<h6 class="card-title text-muted mb-0">Notificações</h6>
+								<h3 class="mb-0" id="totalNotifications">0</h3>
+							</div>
+							<i class="bi bi-bell text-info" style="font-size: 2rem;"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-                <!-- Event Types Filter -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-white">
-                        <h6 class="mb-0">
-                            <i class="bi bi-funnel"></i> Filtrar Eventos
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="filterOrder" checked onchange="updateFilter()">
-                            <label class="form-check-label" for="filterOrder">
-                                <span class="badge bg-success me-2"></span> Pedidos
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="filterPayment" checked onchange="updateFilter()">
-                            <label class="form-check-label" for="filterPayment">
-                                <span class="badge bg-warning me-2"></span> Pagamentos
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="filterInventory" checked onchange="updateFilter()">
-                            <label class="form-check-label" for="filterInventory">
-                                <span class="badge bg-danger me-2"></span> Estoque
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="filterNotification" checked onchange="updateFilter()">
-                            <label class="form-check-label" for="filterNotification">
-                                <span class="badge bg-info me-2"></span> Notificações
-                            </label>
-                        </div>
-                    </div>
-                </div>
+		<!-- Main Content Row -->
+		<div class="row">
+			<!-- Message Flow -->
+			<div class="col-lg-8">
+				<div class="card border-0 shadow-sm">
+					<div class="card-header bg-white d-flex justify-content-between align-items-center">
+						<h5 class="mb-0">
+							<i class="bi bi-activity"></i> Fluxo de Mensagens em Tempo Real
+						</h5>
+						<div>
+							<button class="btn btn-sm btn-outline-secondary" onclick="clearMessages()">
+								<i class="bi bi-trash"></i> Limpar
+							</button>
+							<button class="btn btn-sm btn-outline-primary" onclick="pauseMessages()" id="pauseBtn">
+								<i class="bi bi-pause"></i> Pausar
+							</button>
+						</div>
+					</div>
+					<div class="card-body p-0">
+						<div class="message-flow p-3" id="messageFlow">
+							<div class="text-center text-muted">
+								<i class="bi bi-hourglass-split"></i>
+								<p>Aguardando mensagens...</p>
+							</div>
+						</div>
+					</div>
+				</div>
 
-                <!-- Module Statistics -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-white">
-                        <h6 class="mb-0">
-                            <i class="bi bi-graph-up"></i> Estatísticas dos Módulos
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-6">
-                                <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="showNotificationStats()">
-                                    <i class="bi bi-bell"></i> Notificações
-                                </button>
-                            </div>
-                            <div class="col-6">
-                                <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="showInventoryStats()">
-                                    <i class="bi bi-box"></i> Estoque
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+				<!-- Test Actions -->
+				<div class="card border-0 shadow-sm mt-4">
+					<div class="card-header bg-white">
+						<h5 class="mb-0">
+							<i class="bi bi-play-circle"></i> Ações de Teste
+						</h5>
+					</div>
+					<div class="card-body">
+						<div class="row">
+							<div class="col-md-6">
+								<button class="btn btn-success w-100 mb-2" onclick="createTestOrder()">
+									<i class="bi bi-plus-circle"></i> Criar Pedido de Teste
+								</button>
+								<button class="btn btn-warning w-100 mb-2" onclick="createTestPayment()">
+									<i class="bi bi-credit-card"></i> Criar Pagamento
+								</button>
+								<button class="btn btn-primary w-100 mb-2" onclick="processTestPayment()">
+									<i class="bi bi-play"></i> Processar Pagamento
+								</button>
+								<button class="btn btn-secondary w-100 mb-2" onclick="sendTestNotification()">
+									<i class="bi bi-bell"></i> Enviar Notificação
+								</button>
+							</div>
+							<div class="col-md-6">
+								<button class="btn btn-info w-100 mb-2" onclick="createTestProduct()">
+									<i class="bi bi-box-seam"></i> Criar Produto
+								</button>
+								<button class="btn btn-outline-info w-100 mb-2" onclick="addTestStock()">
+									<i class="bi bi-plus-square"></i> Adicionar Estoque
+								</button>
+								<button class="btn btn-outline-warning w-100 mb-2" onclick="reserveTestStock()">
+									<i class="bi bi-lock"></i> Reservar Estoque
+								</button>
+								<button class="btn btn-danger w-100 mb-2" onclick="refundTestPayment()">
+									<i class="bi bi-arrow-counterclockwise"></i> Reembolsar
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
 
-                <!-- Recent Orders -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white">
-                        <h6 class="mb-0">
-                            <i class="bi bi-list-ul"></i> Pedidos Recentes
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div id="recentOrders">
-                            <div class="text-center text-muted">
-                                <p class="mb-0">Nenhum pedido ainda</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+			<!-- Sidebar -->
+			<div class="col-lg-4">
+				<!-- System Status -->
+				<div class="card border-0 shadow-sm mb-4">
+					<div class="card-header bg-white">
+						<h6 class="mb-0">
+							<i class="bi bi-gear"></i> Status do Sistema
+						</h6>
+					</div>
+					<div class="card-body">
+						<div class="d-flex justify-content-between align-items-center mb-2">
+							<span>RabbitMQ</span>
+							<span class="badge bg-success" id="rabbitmqStatus">
+								<i class="bi bi-check-circle"></i> Online
+							</span>
+						</div>
+						<div class="d-flex justify-content-between align-items-center mb-2">
+							<span>MongoDB</span>
+							<span class="badge bg-success" id="mongoStatus">
+								<i class="bi bi-check-circle"></i> Online
+							</span>
+						</div>
+						<div class="d-flex justify-content-between align-items-center mb-2">
+							<span>Orders Module</span>
+							<span class="badge bg-success" id="ordersStatus">
+								<i class="bi bi-check-circle"></i> Ativo
+							</span>
+						</div>
+						<div class="d-flex justify-content-between align-items-center">
+							<span>WebSocket</span>
+							<span class="badge bg-secondary" id="websocketStatus">
+								<i class="bi bi-wifi-off"></i> Desconectado
+							</span>
+						</div>
+					</div>
+				</div>
 
-    <!-- Message Detail Modal -->
-    <div class="modal fade" id="messageModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Detalhes da Mensagem</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Informações Básicas</h6>
-                            <table class="table table-sm">
-                                <tbody id="messageBasicInfo">
-                                    <!-- Populated by JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Dados da Mensagem</h6>
-                            <pre class="json-preview border rounded p-2" id="messageData">
+				<!-- Event Types Filter -->
+				<div class="card border-0 shadow-sm mb-4">
+					<div class="card-header bg-white">
+						<h6 class="mb-0">
+							<i class="bi bi-funnel"></i> Filtrar Eventos
+						</h6>
+					</div>
+					<div class="card-body">
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="filterOrder" checked onchange="updateFilter()">
+							<label class="form-check-label" for="filterOrder">
+								<span class="badge bg-success me-2"></span> Pedidos
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="filterPayment" checked onchange="updateFilter()">
+							<label class="form-check-label" for="filterPayment">
+								<span class="badge bg-warning me-2"></span> Pagamentos
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="filterInventory" checked onchange="updateFilter()">
+							<label class="form-check-label" for="filterInventory">
+								<span class="badge bg-danger me-2"></span> Estoque
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="filterNotification" checked onchange="updateFilter()">
+							<label class="form-check-label" for="filterNotification">
+								<span class="badge bg-info me-2"></span> Notificações
+							</label>
+						</div>
+					</div>
+				</div>
+
+				<!-- Module Statistics -->
+				<div class="card border-0 shadow-sm mb-4">
+					<div class="card-header bg-white">
+						<h6 class="mb-0">
+							<i class="bi bi-graph-up"></i> Estatísticas dos Módulos
+						</h6>
+					</div>
+					<div class="card-body">
+						<div class="row">
+							<div class="col-6">
+								<button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="showNotificationStats()">
+									<i class="bi bi-bell"></i> Notificações
+								</button>
+							</div>
+							<div class="col-6">
+								<button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="showInventoryStats()">
+									<i class="bi bi-box"></i> Estoque
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Recent Orders -->
+				<div class="card border-0 shadow-sm">
+					<div class="card-header bg-white">
+						<h6 class="mb-0">
+							<i class="bi bi-list-ul"></i> Pedidos Recentes
+						</h6>
+					</div>
+					<div class="card-body">
+						<div id="recentOrders">
+							<div class="text-center text-muted">
+								<p class="mb-0">Nenhum pedido ainda</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Message Detail Modal -->
+	<div class="modal fade" id="messageModal" tabindex="-1">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Detalhes da Mensagem</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<div class="row">
+						<div class="col-md-6">
+							<h6>Informações Básicas</h6>
+							<table class="table table-sm">
+								<tbody id="messageBasicInfo">
+									<!-- Populated by JavaScript -->
+								</tbody>
+							</table>
+						</div>
+						<div class="col-md-6">
+							<h6>Dados da Mensagem</h6>
+							<pre class="json-preview border rounded p-2" id="messageData">
                                 <!-- Populated by JavaScript -->
                             </pre>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Socket.io -->
-    <script src="/socket.io/socket.io.js"></script>
-    
-    <script src="/js/dashboard.js"></script>
+	<!-- Bootstrap 5 JS -->
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<!-- Socket.io -->
+	<script src="/socket.io/socket.io.js"></script>
+
+	<script src="/js/dashboard.js"></script>
 </body>
+
 </html>

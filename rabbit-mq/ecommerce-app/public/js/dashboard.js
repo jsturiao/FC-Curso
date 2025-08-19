@@ -1,10 +1,9 @@
-// Dashboard JavaScript functionality
 class Dashboard {
 	constructor() {
 		this.socket = null;
-		this.messages = [];
+		this.messageCount = 0;
 		this.isPaused = false;
-		this.filters = {
+		this.eventFilters = {
 			order: true,
 			payment: true,
 			inventory: true,
@@ -16,261 +15,282 @@ class Dashboard {
 			totalPayments: 0,
 			totalNotifications: 0
 		};
+		this.recentOrders = [];
+		this.messageHistory = [];
 
 		this.init();
 	}
 
 	init() {
-		this.initSocket();
 		this.updateTime();
-		this.loadInitialData();
-
-		// Update time every second
 		setInterval(() => this.updateTime(), 1000);
 
-		// Update stats every 30 seconds
-		setInterval(() => this.updateStats(), 30000);
-	}
-
-	initSocket() {
-		try {
-			this.socket = io();
-
-			this.socket.on('connect', () => {
-				console.log('Connected to server');
-				this.updateConnectionStatus(true);
-				this.updateWebSocketStatus(true);
-			});
-
-			this.socket.on('disconnect', () => {
-				console.log('Disconnected from server');
-				this.updateConnectionStatus(false);
-				this.updateWebSocketStatus(false);
-			});
-
-			this.socket.on('message', (message) => {
-				this.handleNewMessage(message);
-			});
-
-			this.socket.on('stats', (stats) => {
-				this.updateStatsDisplay(stats);
-			});
-
-			this.socket.on('system-status', (status) => {
-				this.updateSystemStatus(status);
-			});
-
-		} catch (error) {
-			console.error('Socket initialization error:', error);
-			this.updateConnectionStatus(false);
-		}
+		this.connectWebSocket();
+		this.setupEventListeners();
+		this.loadInitialData();
 	}
 
 	updateTime() {
 		const now = new Date();
-		const timeString = now.toLocaleTimeString('pt-BR');
-		document.getElementById('currentTime').textContent = timeString;
+		document.getElementById('currentTime').textContent = now.toLocaleTimeString('pt-BR');
 	}
 
-	updateConnectionStatus(connected) {
+	connectWebSocket() {
+		try {
+			this.socket = io();
+
+			this.socket.on('connect', () => {
+				console.log('✅ WebSocket conectado');
+				this.updateConnectionStatus('connected');
+				this.updateWebSocketStatus('online');
+			});
+
+			this.socket.on('disconnect', () => {
+				console.log('❌ WebSocket desconectado');
+				this.updateConnectionStatus('disconnected');
+				this.updateWebSocketStatus('offline');
+			});
+
+			this.socket.on('reconnect', () => {
+				console.log('🔄 WebSocket reconectado');
+				this.updateConnectionStatus('connected');
+				this.updateWebSocketStatus('online');
+			});
+
+			// Eventos de sistema
+			this.socket.on('system_status', (data) => {
+				this.updateSystemStatus(data);
+			});
+
+			// Eventos de mensagens
+			this.socket.on('message_received', (data) => {
+				if (!this.isPaused) {
+					this.handleNewMessage(data);
+				}
+			});
+
+			// Eventos específicos de módulos
+			this.socket.on('order_created', (data) => this.handleOrderEvent(data, 'created'));
+			this.socket.on('order_updated', (data) => this.handleOrderEvent(data, 'updated'));
+			this.socket.on('payment_processed', (data) => this.handlePaymentEvent(data));
+			this.socket.on('notification_sent', (data) => this.handleNotificationEvent(data));
+			this.socket.on('inventory_updated', (data) => this.handleInventoryEvent(data));
+
+		} catch (error) {
+			console.error('Erro ao conectar WebSocket:', error);
+			this.updateConnectionStatus('error');
+		}
+	}
+
+	updateConnectionStatus(status) {
 		const statusElement = document.getElementById('connectionStatus');
-		if (connected) {
-			statusElement.innerHTML = '<i class="bi bi-wifi"></i> Conectado';
-			statusElement.className = 'badge bg-success';
+		const statusMap = {
+			connected: { class: 'bg-success', icon: 'bi-wifi', text: 'Conectado' },
+			disconnected: { class: 'bg-danger', icon: 'bi-wifi-off', text: 'Desconectado' },
+			error: { class: 'bg-warning', icon: 'bi-exclamation-triangle', text: 'Erro' }
+		};
+
+		const config = statusMap[status] || statusMap.disconnected;
+		statusElement.className = `badge ${config.class} pulse`;
+		statusElement.innerHTML = `<i class="bi ${config.icon}"></i> ${config.text}`;
+	}
+
+	updateWebSocketStatus(status) {
+		const element = document.getElementById('websocketStatus');
+		if (status === 'online') {
+			element.className = 'badge bg-success';
+			element.innerHTML = '<i class="bi bi-wifi"></i> Conectado';
 		} else {
-			statusElement.innerHTML = '<i class="bi bi-wifi-off"></i> Desconectado';
-			statusElement.className = 'badge bg-danger pulse';
+			element.className = 'badge bg-danger';
+			element.innerHTML = '<i class="bi bi-wifi-off"></i> Desconectado';
 		}
 	}
 
-	updateWebSocketStatus(connected) {
-		const statusElement = document.getElementById('websocketStatus');
-		if (connected) {
-			statusElement.innerHTML = '<i class="bi bi-wifi"></i> Conectado';
-			statusElement.className = 'badge bg-success';
-		} else {
-			statusElement.innerHTML = '<i class="bi bi-wifi-off"></i> Desconectado';
-			statusElement.className = 'badge bg-secondary';
-		}
-	}
+	updateSystemStatus(data) {
+		const statusElements = {
+			rabbitmq: document.getElementById('rabbitmqStatus'),
+			mongo: document.getElementById('mongoStatus'),
+			orders: document.getElementById('ordersStatus')
+		};
 
-	updateSystemStatus(status) {
-		// Update RabbitMQ status
-		const rabbitmqElement = document.getElementById('rabbitmqStatus');
-		if (status.rabbitmq) {
-			rabbitmqElement.innerHTML = '<i class="bi bi-check-circle"></i> Online';
-			rabbitmqElement.className = 'badge bg-success';
-		} else {
-			rabbitmqElement.innerHTML = '<i class="bi bi-x-circle"></i> Offline';
-			rabbitmqElement.className = 'badge bg-danger';
-		}
+		Object.keys(statusElements).forEach(service => {
+			const element = statusElements[service];
+			if (!element) return;
 
-		// Update MongoDB status
-		const mongoElement = document.getElementById('mongoStatus');
-		if (status.mongodb) {
-			mongoElement.innerHTML = '<i class="bi bi-check-circle"></i> Online';
-			mongoElement.className = 'badge bg-success';
-		} else {
-			mongoElement.innerHTML = '<i class="bi bi-x-circle"></i> Offline';
-			mongoElement.className = 'badge bg-danger';
-		}
+			const isOnline = data[service] === 'online' || data[service] === true;
 
-		// Update Orders Module status
-		const ordersElement = document.getElementById('ordersStatus');
-		if (status.orders) {
-			ordersElement.innerHTML = '<i class="bi bi-check-circle"></i> Ativo';
-			ordersElement.className = 'badge bg-success';
-		} else {
-			ordersElement.innerHTML = '<i class="bi bi-x-circle"></i> Inativo';
-			ordersElement.className = 'badge bg-danger';
-		}
-	}
-
-	handleNewMessage(message) {
-		if (this.isPaused) return;
-
-		this.messages.unshift(message);
-		this.stats.totalMessages++;
-
-		// Update message type stats
-		if (message.eventType.includes('order')) {
-			this.stats.activeOrders = Math.max(0, this.stats.activeOrders + (message.eventType.includes('created') ? 1 : 0));
-		} else if (message.eventType.includes('payment')) {
-			this.stats.totalPayments++;
-		} else if (message.eventType.includes('notification')) {
-			this.stats.totalNotifications++;
-		}
-
-		this.updateStatsDisplay();
-		this.renderMessages();
-		this.updateRecentOrders();
-
-		// Keep only last 100 messages
-		if (this.messages.length > 100) {
-			this.messages = this.messages.slice(0, 100);
-		}
-	}
-
-	renderMessages() {
-		const container = document.getElementById('messageFlow');
-		container.innerHTML = '';
-
-		const filteredMessages = this.messages.filter(msg => this.shouldShowMessage(msg));
-
-		if (filteredMessages.length === 0) {
-			container.innerHTML = `
-                <div class="text-center text-muted">
-                    <i class="bi bi-funnel"></i>
-                    <p>Nenhuma mensagem corresponde aos filtros selecionados</p>
-                </div>
-            `;
-			return;
-		}
-
-		filteredMessages.forEach(message => {
-			const messageElement = this.createMessageElement(message);
-			container.appendChild(messageElement);
+			if (isOnline) {
+				element.className = 'badge bg-success';
+				element.innerHTML = '<i class="bi bi-check-circle"></i> Online';
+			} else {
+				element.className = 'badge bg-danger';
+				element.innerHTML = '<i class="bi bi-x-circle"></i> Offline';
+			}
 		});
 	}
 
-	createMessageElement(message) {
-		const div = document.createElement('div');
-		div.className = `message-item card mb-2 ${this.getMessageClass(message.eventType)}`;
+	handleNewMessage(data) {
+		if (!this.shouldShowMessage(data.type)) return;
 
-		const timeString = new Date(message.timestamp).toLocaleTimeString('pt-BR');
-		const eventIcon = this.getEventIcon(message.eventType);
+		this.messageCount++;
+		this.stats.totalMessages++;
+		this.updateStats();
+
+		this.addMessageToFlow(data);
+		this.messageHistory.unshift(data);
+
+		// Manter apenas as últimas 100 mensagens
+		if (this.messageHistory.length > 100) {
+			this.messageHistory = this.messageHistory.slice(0, 100);
+		}
+	}
+
+	shouldShowMessage(type) {
+		const typeMap = {
+			'order': 'order',
+			'payment': 'payment',
+			'inventory': 'inventory',
+			'notification': 'notification'
+		};
+
+		const filterKey = typeMap[type] || type;
+		return this.eventFilters[filterKey] !== false;
+	}
+
+	addMessageToFlow(data) {
+		const messageFlow = document.getElementById('messageFlow');
+
+		// Remover mensagem de "aguardando" se existir
+		const waitingMessage = messageFlow.querySelector('.text-center.text-muted');
+		if (waitingMessage) {
+			waitingMessage.remove();
+		}
+
+		const messageElement = this.createMessageElement(data);
+		messageFlow.insertBefore(messageElement, messageFlow.firstChild);
+
+		// Manter apenas as últimas 50 mensagens na tela
+		const messages = messageFlow.querySelectorAll('.message-item');
+		if (messages.length > 50) {
+			messages[messages.length - 1].remove();
+		}
+	}
+
+	createMessageElement(data) {
+		const div = document.createElement('div');
+		div.className = 'message-item mb-3 p-3 border rounded';
+		div.style.cursor = 'pointer';
+
+		const typeColors = {
+			order: 'success',
+			payment: 'warning',
+			inventory: 'danger',
+			notification: 'info'
+		};
+
+		const color = typeColors[data.type] || 'secondary';
+		const timestamp = new Date(data.timestamp || Date.now()).toLocaleTimeString('pt-BR');
 
 		div.innerHTML = `
-            <div class="card-body py-2">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="d-flex align-items-center mb-1">
-                            <i class="bi ${eventIcon} me-2"></i>
-                            <strong class="me-2">${message.eventType}</strong>
-                            <span class="badge ${this.getEventBadgeClass(message.eventType)} status-badge">${this.getEventCategory(message.eventType)}</span>
-                        </div>
-                        <div class="text-muted small">
-                            <i class="bi bi-clock me-1"></i> ${timeString}
-                            ${message.correlationId ? `<i class="bi bi-link-45deg ms-2 me-1"></i> ${message.correlationId.substring(0, 8)}...` : ''}
-                        </div>
-                        ${message.data && message.data.orderId ? `<div class="text-muted small"><i class="bi bi-tag me-1"></i> Pedido: ${message.data.orderId}</div>` : ''}
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-${color} me-2">${data.type.toUpperCase()}</span>
+                        <strong>${data.event || 'Evento'}</strong>
+                        <small class="text-muted ms-auto">${timestamp}</small>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary" onclick="dashboard.showMessageDetails('${message.id}')">
-                        <i class="bi bi-eye"></i>
-                    </button>
+                    <div class="message-summary">
+                        ${this.formatMessageSummary(data)}
+                    </div>
+                    ${data.data && Object.keys(data.data).length > 0 ?
+				`<small class="text-muted">Clique para ver detalhes</small>` : ''
+			}
                 </div>
             </div>
         `;
 
-		// Add click animation
-		div.addEventListener('click', () => {
-			div.style.transform = 'scale(0.98)';
-			setTimeout(() => {
-				div.style.transform = 'scale(1)';
-			}, 100);
-		});
+		// Adicionar evento de clique para mostrar detalhes
+		if (data.data && Object.keys(data.data).length > 0) {
+			div.addEventListener('click', () => this.showMessageDetails(data));
+		}
 
 		return div;
 	}
 
-	getMessageClass(eventType) {
-		if (eventType.includes('order')) return 'order-event';
-		if (eventType.includes('payment')) return 'payment-event';
-		if (eventType.includes('inventory')) return 'inventory-event';
-		if (eventType.includes('notification')) return 'notification-event';
-		return '';
+	formatMessageSummary(data) {
+		if (data.data) {
+			const summary = [];
+
+			if (data.data.orderId) summary.push(`Pedido: ${data.data.orderId}`);
+			if (data.data.paymentId) summary.push(`Pagamento: ${data.data.paymentId}`);
+			if (data.data.productId) summary.push(`Produto: ${data.data.productId}`);
+			if (data.data.userId) summary.push(`Usuário: ${data.data.userId}`);
+			if (data.data.amount) summary.push(`Valor: R$ ${data.data.amount}`);
+			if (data.data.quantity) summary.push(`Quantidade: ${data.data.quantity}`);
+			if (data.data.status) summary.push(`Status: ${data.data.status}`);
+
+			return summary.length > 0 ? summary.join(' • ') : 'Mensagem recebida';
+		}
+
+		return data.message || 'Evento do sistema';
 	}
 
-	getEventIcon(eventType) {
-		if (eventType.includes('order')) return 'bi-cart';
-		if (eventType.includes('payment')) return 'bi-credit-card';
-		if (eventType.includes('inventory')) return 'bi-box';
-		if (eventType.includes('notification')) return 'bi-bell';
-		return 'bi-envelope';
+	showMessageDetails(data) {
+		// Preencher informações básicas
+		const basicInfo = document.getElementById('messageBasicInfo');
+		basicInfo.innerHTML = `
+            <tr><td><strong>Tipo:</strong></td><td>${data.type}</td></tr>
+            <tr><td><strong>Evento:</strong></td><td>${data.event || 'N/A'}</td></tr>
+            <tr><td><strong>Timestamp:</strong></td><td>${new Date(data.timestamp || Date.now()).toLocaleString('pt-BR')}</td></tr>
+            <tr><td><strong>Queue:</strong></td><td>${data.queue || 'N/A'}</td></tr>
+        `;
+
+		// Preencher dados da mensagem
+		const messageData = document.getElementById('messageData');
+		messageData.textContent = JSON.stringify(data.data || {}, null, 2);
+
+		// Mostrar modal
+		const modal = new bootstrap.Modal(document.getElementById('messageModal'));
+		modal.show();
 	}
 
-	getEventBadgeClass(eventType) {
-		if (eventType.includes('order')) return 'bg-success';
-		if (eventType.includes('payment')) return 'bg-warning';
-		if (eventType.includes('inventory')) return 'bg-danger';
-		if (eventType.includes('notification')) return 'bg-info';
-		return 'bg-secondary';
+	handleOrderEvent(data, action) {
+		this.stats.activeOrders++;
+		this.updateStats();
+
+		if (action === 'created') {
+			this.addRecentOrder(data);
+		}
 	}
 
-	getEventCategory(eventType) {
-		if (eventType.includes('order')) return 'Pedido';
-		if (eventType.includes('payment')) return 'Pagamento';
-		if (eventType.includes('inventory')) return 'Estoque';
-		if (eventType.includes('notification')) return 'Notificação';
-		return 'Sistema';
+	handlePaymentEvent(data) {
+		this.stats.totalPayments++;
+		this.updateStats();
 	}
 
-	shouldShowMessage(message) {
-		const type = message.eventType.toLowerCase();
-		if (type.includes('order') && !this.filters.order) return false;
-		if (type.includes('payment') && !this.filters.payment) return false;
-		if (type.includes('inventory') && !this.filters.inventory) return false;
-		if (type.includes('notification') && !this.filters.notification) return false;
-		return true;
+	handleNotificationEvent(data) {
+		this.stats.totalNotifications++;
+		this.updateStats();
 	}
 
-	updateStatsDisplay(stats = null) {
-		const currentStats = stats || this.stats;
+	handleInventoryEvent(data) {
+		console.log('Evento de estoque:', data);
+	}
 
-		document.getElementById('totalMessages').textContent = currentStats.totalMessages || 0;
-		document.getElementById('activeOrders').textContent = currentStats.activeOrders || 0;
-		document.getElementById('totalPayments').textContent = currentStats.totalPayments || 0;
-		document.getElementById('totalNotifications').textContent = currentStats.totalNotifications || 0;
+	addRecentOrder(data) {
+		this.recentOrders.unshift(data);
+
+		if (this.recentOrders.length > 10) {
+			this.recentOrders = this.recentOrders.slice(0, 10);
+		}
+
+		this.updateRecentOrders();
 	}
 
 	updateRecentOrders() {
-		const orderMessages = this.messages.filter(msg =>
-			msg.eventType.includes('order') && msg.data && msg.data.orderId
-		).slice(0, 5);
-
 		const container = document.getElementById('recentOrders');
 
-		if (orderMessages.length === 0) {
+		if (this.recentOrders.length === 0) {
 			container.innerHTML = `
                 <div class="text-center text-muted">
                     <p class="mb-0">Nenhum pedido ainda</p>
@@ -279,703 +299,314 @@ class Dashboard {
 			return;
 		}
 
-		container.innerHTML = orderMessages.map(msg => `
-            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+		container.innerHTML = this.recentOrders.map(order => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
                 <div>
-                    <div class="fw-bold small">${msg.data.orderId}</div>
-                    <div class="text-muted" style="font-size: 0.75rem;">
-                        ${new Date(msg.timestamp).toLocaleTimeString('pt-BR')}
-                    </div>
+                    <small class="text-muted">Pedido ${order.orderId || order.id}</small><br>
+                    <strong>R$ ${order.amount || '0,00'}</strong>
                 </div>
-                <span class="badge ${this.getEventBadgeClass(msg.eventType)} status-badge">
-                    ${msg.eventType.split('.')[1]}
-                </span>
+                <span class="badge bg-${this.getOrderStatusColor(order.status)}">${order.status || 'Novo'}</span>
             </div>
         `).join('');
 	}
 
-	showMessageDetails(messageId) {
-		const message = this.messages.find(m => m.id === messageId);
-		if (!message) return;
-
-		// Populate basic info
-		const basicInfo = document.getElementById('messageBasicInfo');
-		basicInfo.innerHTML = `
-            <tr><td><strong>ID:</strong></td><td>${message.id}</td></tr>
-            <tr><td><strong>Tipo:</strong></td><td>${message.eventType}</td></tr>
-            <tr><td><strong>Timestamp:</strong></td><td>${new Date(message.timestamp).toLocaleString('pt-BR')}</td></tr>
-            <tr><td><strong>Exchange:</strong></td><td>${message.exchange || 'N/A'}</td></tr>
-            <tr><td><strong>Routing Key:</strong></td><td>${message.routingKey || 'N/A'}</td></tr>
-            ${message.correlationId ? `<tr><td><strong>Correlation ID:</strong></td><td>${message.correlationId}</td></tr>` : ''}
-        `;
-
-		// Populate message data
-		const messageData = document.getElementById('messageData');
-		messageData.textContent = JSON.stringify(message.data || {}, null, 2);
-
-		// Show modal
-		const modal = new bootstrap.Modal(document.getElementById('messageModal'));
-		modal.show();
+	getOrderStatusColor(status) {
+		const colorMap = {
+			'pending': 'warning',
+			'processing': 'info',
+			'confirmed': 'success',
+			'cancelled': 'danger',
+			'completed': 'success'
+		};
+		return colorMap[status] || 'secondary';
 	}
 
-	async loadInitialData() {
-		try {
-			// Load system status
-			const statusResponse = await fetch('/api/health');
-			if (statusResponse.ok) {
-				const status = await statusResponse.json();
-				this.updateSystemStatus(status);
-			}
-
-			// Load initial stats
-			const statsResponse = await fetch('/api/stats');
-			if (statsResponse.ok) {
-				const stats = await statsResponse.json();
-				this.updateStatsDisplay(stats);
-			}
-		} catch (error) {
-			console.error('Error loading initial data:', error);
-		}
+	updateStats() {
+		document.getElementById('totalMessages').textContent = this.stats.totalMessages;
+		document.getElementById('activeOrders').textContent = this.stats.activeOrders;
+		document.getElementById('totalPayments').textContent = this.stats.totalPayments;
+		document.getElementById('totalNotifications').textContent = this.stats.totalNotifications;
 	}
 
-	async updateStats() {
-		try {
-			const response = await fetch('/api/stats');
-			if (response.ok) {
-				const stats = await response.json();
-				this.updateStatsDisplay(stats);
-			}
-		} catch (error) {
-			console.error('Error updating stats:', error);
-		}
+	setupEventListeners() {
+		// Event listeners configurados via HTML onclick
 	}
 
-	// Test actions
-	async createTestOrder() {
-		try {
-			const response = await fetch('/api/orders', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					customerId: 'CUST_' + Math.random().toString(36).substr(2, 9),
-					customerEmail: 'test@example.com',
-					items: [
-						{
-							productId: 'PROD_' + Math.random().toString(36).substr(2, 5),
-							productName: 'Produto de Teste',
-							quantity: Math.floor(Math.random() * 3) + 1,
-							price: Math.floor(Math.random() * 100) + 10
-						}
-					],
-					shippingAddress: {
-						street: 'Rua Teste, 123',
-						city: 'São Paulo',
-						state: 'SP',
-						zipCode: '01234-567',
-						country: 'Brasil'
-					}
-				})
+	loadInitialData() {
+		this.fetchSystemStatus();
+	}
+
+	fetchSystemStatus() {
+		fetch('/api/health')
+			.then(response => response.json())
+			.then(data => {
+				console.log('Status do sistema:', data);
+				this.updateSystemStatus(data);
+			})
+			.catch(error => {
+				console.error('Erro ao buscar status do sistema:', error);
 			});
-
-			if (response.ok) {
-				const result = await response.json();
-				this.showSuccessAlert(`Pedido ${result.data.orderId} criado com sucesso!`);
-			} else {
-				throw new Error('Falha ao criar pedido');
-			}
-		} catch (error) {
-			this.showErrorAlert('Erro ao criar pedido de teste: ' + error.message);
-		}
-	}
-
-	async processTestPayment() {
-		const orders = this.messages.filter(m => m.eventType === 'order.created' && m.data?.orderId);
-		if (orders.length === 0) {
-			this.showWarningAlert('Nenhum pedido disponível para processar pagamento');
-			return;
-		}
-
-		const lastOrder = orders[0];
-		// Simulate payment processing
-		this.showSuccessAlert(`Processando pagamento para pedido ${lastOrder.data.orderId}`);
-	}
-
-	async createTestPayment() {
-		try {
-			const response = await fetch('/api/payments', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					orderId: 'ORDER_' + Math.random().toString(36).substr(2, 9),
-					amount: Math.floor(Math.random() * 1000) + 50,
-					currency: 'BRL',
-					paymentMethod: ['credit_card', 'debit_card', 'pix'][Math.floor(Math.random() * 3)],
-					gatewayProvider: 'mock',
-					customerInfo: {
-						customerId: 'CUST_' + Math.random().toString(36).substr(2, 9),
-						email: 'test@example.com',
-						name: 'Cliente Teste'
-					},
-					paymentDetails: {
-						installments: Math.floor(Math.random() * 12) + 1
-					}
-				})
-			});
-
-			if (response.ok) {
-				const result = await response.json();
-				this.showSuccessAlert(`Pagamento ${result.payment.paymentId} criado com sucesso!`);
-
-				// Auto-processar após 3 segundos
-				setTimeout(async () => {
-					await this.processPayment(result.payment.paymentId);
-				}, 3000);
-			} else {
-				throw new Error('Falha ao criar pagamento');
-			}
-		} catch (error) {
-			this.showErrorAlert('Erro ao criar pagamento de teste: ' + error.message);
-		}
-	}
-
-	async processPayment(paymentId) {
-		try {
-			const response = await fetch(`/api/payments/${paymentId}/process`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({})
-			});
-
-			if (response.ok) {
-				const result = await response.json();
-				this.showSuccessAlert(`Pagamento processado: ${result.payment.status}`);
-			} else {
-				throw new Error('Falha ao processar pagamento');
-			}
-		} catch (error) {
-			this.showErrorAlert('Erro ao processar pagamento: ' + error.message);
-		}
-	}
-
-	async refundTestPayment() {
-		try {
-			// Buscar pagamentos aprovados
-			const response = await fetch('/api/payments?status=approved&limit=1');
-			const data = await response.json();
-
-			if (!data.success || data.payments.length === 0) {
-				this.showWarningAlert('Nenhum pagamento aprovado disponível para reembolso');
-				return;
-			}
-
-			const payment = data.payments[0];
-			const refundResponse = await fetch(`/api/payments/${payment.paymentId}/refund`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					reason: 'Teste de reembolso pelo dashboard'
-				})
-			});
-
-			if (refundResponse.ok) {
-				this.showSuccessAlert(`Reembolso processado para pagamento ${payment.paymentId}`);
-			} else {
-				throw new Error('Falha ao processar reembolso');
-			}
-		} catch (error) {
-			this.showErrorAlert('Erro ao processar reembolso: ' + error.message);
-		}
-	}
-
-	async checkTestInventory() {
-		this.showSuccessAlert('Verificação de estoque simulada');
-	}
-
-	async sendTestNotification() {
-		try {
-			// Test Email Notification
-			const emailResponse = await fetch('/api/notifications/email/test', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					to: 'customer@example.com',
-					template: 'order-confirmation',
-					data: {
-						customerName: 'Test Customer',
-						orderId: 'TEST-' + Date.now(),
-						total: 99.99,
-						currency: 'USD',
-						items: [
-							{ name: 'Test Product', quantity: 1, price: 99.99 }
-						]
-					}
-				})
-			});
-
-			// Test SMS Notification
-			const smsResponse = await fetch('/api/notifications/sms/test', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					to: '+1234567890',
-					type: 'order-alert',
-					data: {
-						orderId: 'TEST-' + Date.now(),
-						status: 'confirmed'
-					}
-				})
-			});
-
-			// Test Push Notification
-			const pushResponse = await fetch('/api/notifications/push/test', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					userId: 'test-user-123',
-					type: 'order-update',
-					data: {
-						orderId: 'TEST-' + Date.now(),
-						title: 'Test Order Update',
-						message: 'This is a test notification!'
-					}
-				})
-			});
-
-			if (emailResponse.ok && smsResponse.ok && pushResponse.ok) {
-				this.showSuccessAlert('Notificações de teste enviadas com sucesso! (Email, SMS e Push)');
-			} else {
-				this.showWarningAlert('Algumas notificações de teste falharam. Verifique os logs.');
-			}
-
-		} catch (error) {
-			console.error('Error sending test notifications:', error);
-			this.showErrorAlert('Erro ao enviar notificações de teste');
-		}
-	}
-
-	// Utility methods
-	showSuccessAlert(message) {
-		this.showAlert(message, 'success');
-	}
-
-	showErrorAlert(message) {
-		this.showAlert(message, 'danger');
-	}
-
-	showWarningAlert(message) {
-		this.showAlert(message, 'warning');
-	}
-
-	showAlert(message, type) {
-		const alertDiv = document.createElement('div');
-		alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-		alertDiv.style.top = '100px';
-		alertDiv.style.right = '20px';
-		alertDiv.style.zIndex = '1050';
-		alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-
-		document.body.appendChild(alertDiv);
-
-		// Auto remove after 5 seconds
-		setTimeout(() => {
-			if (alertDiv.parentNode) {
-				alertDiv.parentNode.removeChild(alertDiv);
-			}
-		}, 5000);
-	}
-
-	// Notification module functions
-	async showNotificationStats() {
-		try {
-			const response = await fetch('/api/notifications/stats');
-			const data = await response.json();
-
-			if (data.success) {
-				const stats = data.data;
-				const modal = document.createElement('div');
-				modal.className = 'modal fade';
-				modal.innerHTML = `
-					<div class="modal-dialog modal-lg">
-						<div class="modal-content">
-							<div class="modal-header">
-								<h5 class="modal-title">📊 Estatísticas de Notificações</h5>
-								<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-							</div>
-							<div class="modal-body">
-								<div class="row">
-									<div class="col-md-4">
-										<div class="card bg-primary text-white">
-											<div class="card-body">
-												<h6>📧 Email Service</h6>
-												<p>Provider: ${stats.email.provider}</p>
-												<p>Status: ${stats.email.status}</p>
-											</div>
-										</div>
-									</div>
-									<div class="col-md-4">
-										<div class="card bg-success text-white">
-											<div class="card-body">
-												<h6>📱 SMS Service</h6>
-												<p>Provider: ${stats.sms.provider}</p>
-												<p>Status: ${stats.sms.status}</p>
-											</div>
-										</div>
-									</div>
-									<div class="col-md-4">
-										<div class="card bg-info text-white">
-											<div class="card-body">
-												<h6>🔔 Push Service</h6>
-												<p>Provider: ${stats.push.provider}</p>
-												<p>Subscribers: ${stats.push.subscriberCount}</p>
-											</div>
-										</div>
-									</div>
-								</div>
-								<div class="mt-3">
-									<h6>Module Status</h6>
-									<p><strong>Status:</strong> ${stats.module.status}</p>
-									<p><strong>Uptime:</strong> ${Math.floor(stats.module.uptime / 60)} minutes</p>
-									<p><strong>Last Check:</strong> ${new Date(stats.module.lastCheck).toLocaleString()}</p>
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-							</div>
-						</div>
-					</div>
-				`;
-
-				document.body.appendChild(modal);
-				const bsModal = new bootstrap.Modal(modal);
-				bsModal.show();
-
-				modal.addEventListener('hidden.bs.modal', () => {
-					document.body.removeChild(modal);
-				});
-			} else {
-				this.showErrorAlert('Erro ao carregar estatísticas de notificação');
-			}
-
-		} catch (error) {
-			console.error('Error loading notification stats:', error);
-			this.showErrorAlert('Erro ao carregar estatísticas de notificação');
-		}
-	}
-
-	// Inventory test functions
-	async showInventoryStats() {
-		try {
-			const response = await fetch('/api/inventory/stats');
-			const data = await response.json();
-
-			if (data.success) {
-				const stats = data.data;
-				const modal = document.createElement('div');
-				modal.className = 'modal fade';
-				modal.innerHTML = `
-					<div class="modal-dialog modal-lg">
-						<div class="modal-content">
-							<div class="modal-header">
-								<h5 class="modal-title">📦 Estatísticas de Estoque</h5>
-								<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-							</div>
-							<div class="modal-body">
-								<div class="row">
-									<div class="col-md-3">
-										<div class="card bg-primary text-white">
-											<div class="card-body text-center">
-												<h4>${stats.totalProducts}</h4>
-												<p>Total de Produtos</p>
-											</div>
-										</div>
-									</div>
-									<div class="col-md-3">
-										<div class="card bg-warning text-white">
-											<div class="card-body text-center">
-												<h4>${stats.lowStockCount}</h4>
-												<p>Estoque Baixo</p>
-											</div>
-										</div>
-									</div>
-									<div class="col-md-3">
-										<div class="card bg-danger text-white">
-											<div class="card-body text-center">
-												<h4>${stats.outOfStockCount}</h4>
-												<p>Sem Estoque</p>
-											</div>
-										</div>
-									</div>
-									<div class="col-md-3">
-										<div class="card bg-success text-white">
-											<div class="card-body text-center">
-												<h4>$${stats.totalInventoryValue.toFixed(2)}</h4>
-												<p>Valor Total</p>
-											</div>
-										</div>
-									</div>
-								</div>
-								${stats.lowStockProducts && stats.lowStockProducts.length > 0 ? `
-								<div class="mt-3">
-									<h6>⚠️ Produtos com Estoque Baixo</h6>
-									<div class="list-group">
-										${stats.lowStockProducts.map(product => `
-											<div class="list-group-item">
-												<div class="d-flex justify-content-between">
-													<span><strong>${product.name}</strong></span>
-													<span class="badge bg-warning">Disponível: ${product.available}</span>
-												</div>
-												<small class="text-muted">Estoque mínimo: ${product.minStock}</small>
-											</div>
-										`).join('')}
-									</div>
-								</div>
-								` : ''}
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-							</div>
-						</div>
-					</div>
-				`;
-
-				document.body.appendChild(modal);
-				const bsModal = new bootstrap.Modal(modal);
-				bsModal.show();
-
-				modal.addEventListener('hidden.bs.modal', () => {
-					document.body.removeChild(modal);
-				});
-			} else {
-				this.showErrorAlert('Erro ao carregar estatísticas de estoque');
-			}
-
-		} catch (error) {
-			console.error('Error loading inventory stats:', error);
-			this.showErrorAlert('Erro ao carregar estatísticas de estoque');
-		}
-	}
-
-	async addTestStock() {
-		try {
-			// Get products first
-			const productsResponse = await fetch('/api/products');
-			const productsData = await productsResponse.json();
-
-			if (!productsData.success || productsData.data.length === 0) {
-				this.showWarningAlert('Nenhum produto disponível para adicionar estoque');
-				return;
-			}
-
-			// Get random product
-			const products = productsData.data;
-			const randomProduct = products[Math.floor(Math.random() * products.length)];
-			const quantityToAdd = Math.floor(Math.random() * 50) + 10; // 10-59 units
-
-			const response = await fetch(`/api/products/${randomProduct.id}/add-stock`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					quantity: quantityToAdd,
-					reason: 'test_restock'
-				})
-			});
-
-			if (response.ok) {
-				const result = await response.json();
-				this.showSuccessAlert(`Adicionadas ${quantityToAdd} unidades ao produto ${randomProduct.name}`);
-			} else {
-				throw new Error('Falha ao adicionar estoque');
-			}
-		} catch (error) {
-			this.showErrorAlert('Erro ao adicionar estoque de teste: ' + error.message);
-		}
-	}
-
-	async reserveTestStock() {
-		try {
-			// Get products first
-			const productsResponse = await fetch('/api/products');
-			const productsData = await productsResponse.json();
-
-			if (!productsData.success || productsData.data.length === 0) {
-				this.showWarningAlert('Nenhum produto disponível para reservar estoque');
-				return;
-			}
-
-			// Find product with available stock
-			const products = productsData.data.filter(p => p.available > 0);
-			if (products.length === 0) {
-				this.showWarningAlert('Nenhum produto com estoque disponível');
-				return;
-			}
-
-			const randomProduct = products[Math.floor(Math.random() * products.length)];
-			const quantityToReserve = Math.min(
-				Math.floor(Math.random() * 5) + 1, // 1-5 units
-				randomProduct.available
-			);
-			const testOrderId = 'TEST_ORDER_' + Date.now();
-
-			const response = await fetch(`/api/products/${randomProduct.id}/reserve`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					quantity: quantityToReserve,
-					orderId: testOrderId
-				})
-			});
-
-			if (response.ok) {
-				const result = await response.json();
-				this.showSuccessAlert(`Reservadas ${quantityToReserve} unidades do produto ${randomProduct.name} para o pedido ${testOrderId}`);
-			} else {
-				throw new Error('Falha ao reservar estoque');
-			}
-		} catch (error) {
-			this.showErrorAlert('Erro ao reservar estoque de teste: ' + error.message);
-		}
-	}
-
-	async createTestProduct() {
-		try {
-			const productId = 'PROD_TEST_' + Date.now();
-			const productNames = [
-				'Smartphone Galaxy',
-				'Notebook Gamer',
-				'Fone Bluetooth',
-				'Mouse RGB',
-				'Teclado Mecânico',
-				'Monitor 4K',
-				'SSD NVMe',
-				'Webcam HD',
-				'Tablet Pro',
-				'Smartwatch'
-			];
-
-			const randomName = productNames[Math.floor(Math.random() * productNames.length)];
-			const randomPrice = Math.floor(Math.random() * 1000) + 50;
-			const randomStock = Math.floor(Math.random() * 100) + 10;
-
-			const response = await fetch('/api/products', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					id: productId,
-					name: randomName + ' Test',
-					description: `Produto de teste criado automaticamente - ${randomName}`,
-					price: randomPrice,
-					stock: randomStock,
-					category: 'test',
-					sku: `TEST-${Date.now()}`,
-					minStock: 5
-				})
-			});
-
-			if (response.ok) {
-				const result = await response.json();
-				this.showSuccessAlert(`Produto de teste criado: ${result.data.name} (${randomStock} unidades)`);
-			} else {
-				throw new Error('Falha ao criar produto');
-			}
-		} catch (error) {
-			this.showErrorAlert('Erro ao criar produto de teste: ' + error.message);
-		}
 	}
 }
 
-// Global functions
+// Funções globais para os botões da interface
 function clearMessages() {
-	dashboard.messages = [];
-	dashboard.renderMessages();
-	dashboard.showSuccessAlert('Mensagens limpas');
+	const messageFlow = document.getElementById('messageFlow');
+	messageFlow.innerHTML = `
+        <div class="text-center text-muted">
+            <i class="bi bi-hourglass-split"></i>
+            <p>Aguardando mensagens...</p>
+        </div>
+    `;
+	dashboard.messageHistory = [];
+	console.log('📝 Mensagens limpas');
 }
 
 function pauseMessages() {
-	dashboard.isPaused = !dashboard.isPaused;
-	const btn = document.getElementById('pauseBtn');
+	const button = document.getElementById('pauseBtn');
 
 	if (dashboard.isPaused) {
-		btn.innerHTML = '<i class="bi bi-play"></i> Retomar';
-		btn.className = 'btn btn-sm btn-outline-success';
+		dashboard.isPaused = false;
+		button.innerHTML = '<i class="bi bi-pause"></i> Pausar';
+		button.className = 'btn btn-sm btn-outline-primary';
+		console.log('▶️ Mensagens retomadas');
 	} else {
-		btn.innerHTML = '<i class="bi bi-pause"></i> Pausar';
-		btn.className = 'btn btn-sm btn-outline-primary';
+		dashboard.isPaused = true;
+		button.innerHTML = '<i class="bi bi-play"></i> Retomar';
+		button.className = 'btn btn-sm btn-outline-warning';
+		console.log('⏸️ Mensagens pausadas');
 	}
 }
 
 function updateFilter() {
-	dashboard.filters.order = document.getElementById('filterOrder').checked;
-	dashboard.filters.payment = document.getElementById('filterPayment').checked;
-	dashboard.filters.inventory = document.getElementById('filterInventory').checked;
-	dashboard.filters.notification = document.getElementById('filterNotification').checked;
-
-	dashboard.renderMessages();
+	dashboard.eventFilters = {
+		order: document.getElementById('filterOrder').checked,
+		payment: document.getElementById('filterPayment').checked,
+		inventory: document.getElementById('filterInventory').checked,
+		notification: document.getElementById('filterNotification').checked
+	};
+	console.log('🔍 Filtros atualizados:', dashboard.eventFilters);
 }
 
-// Test functions
+// Funções de teste
 function createTestOrder() {
-	dashboard.createTestOrder();
+	fetch('/api/orders', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			userId: `user_${Date.now()}`,
+			items: [
+				{ productId: 'product_001', quantity: 2, price: 29.99 },
+				{ productId: 'product_002', quantity: 1, price: 19.99 }
+			],
+			amount: 79.97
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Pedido de teste criado:', data);
+			showNotification('Pedido de teste criado com sucesso!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao criar pedido:', error);
+			showNotification('Erro ao criar pedido de teste', 'error');
+		});
 }
 
 function createTestPayment() {
-	dashboard.createTestPayment();
+	fetch('/api/payments', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			orderId: `order_${Date.now()}`,
+			amount: 99.99,
+			method: 'credit_card',
+			status: 'pending'
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Pagamento de teste criado:', data);
+			showNotification('Pagamento de teste criado!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao criar pagamento:', error);
+			showNotification('Erro ao criar pagamento', 'error');
+		});
 }
 
 function processTestPayment() {
-	dashboard.processTestPayment();
-}
-
-function refundTestPayment() {
-	dashboard.refundTestPayment();
-}
-
-function checkTestInventory() {
-	dashboard.checkTestInventory();
+	fetch('/api/payments/process', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			paymentId: `payment_${Date.now()}`,
+			status: 'approved'
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Pagamento processado:', data);
+			showNotification('Pagamento processado com sucesso!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao processar pagamento:', error);
+			showNotification('Erro ao processar pagamento', 'error');
+		});
 }
 
 function sendTestNotification() {
-	dashboard.sendTestNotification();
-}
-
-function showNotificationStats() {
-	dashboard.showNotificationStats();
-}
-
-function showInventoryStats() {
-	dashboard.showInventoryStats();
-}
-
-function addTestStock() {
-	dashboard.addTestStock();
-}
-
-function reserveTestStock() {
-	dashboard.reserveTestStock();
+	fetch('/api/notifications', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			userId: `user_${Date.now()}`,
+			type: 'order_confirmation',
+			title: 'Pedido Confirmado',
+			message: 'Seu pedido foi confirmado e está sendo processado.',
+			channel: 'email'
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Notificação enviada:', data);
+			showNotification('Notificação de teste enviada!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao enviar notificação:', error);
+			showNotification('Erro ao enviar notificação', 'error');
+		});
 }
 
 function createTestProduct() {
-	dashboard.createTestProduct();
+	fetch('/api/inventory/products', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			name: `Produto Teste ${Date.now()}`,
+			sku: `SKU_${Date.now()}`,
+			price: 49.99,
+			category: 'Eletrônicos',
+			stock: 10
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Produto criado:', data);
+			showNotification('Produto de teste criado!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao criar produto:', error);
+			showNotification('Erro ao criar produto', 'error');
+		});
 }
 
-// Initialize dashboard when page loads
+function addTestStock() {
+	fetch('/api/inventory/stock/add', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			productId: 'product_001',
+			quantity: 5,
+			reason: 'Reposição de teste'
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Estoque adicionado:', data);
+			showNotification('Estoque adicionado com sucesso!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao adicionar estoque:', error);
+			showNotification('Erro ao adicionar estoque', 'error');
+		});
+}
+
+function reserveTestStock() {
+	fetch('/api/inventory/stock/reserve', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			productId: 'product_001',
+			quantity: 2,
+			orderId: `order_${Date.now()}`
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Estoque reservado:', data);
+			showNotification('Estoque reservado com sucesso!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao reservar estoque:', error);
+			showNotification('Erro ao reservar estoque', 'error');
+		});
+}
+
+function refundTestPayment() {
+	fetch('/api/payments/refund', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			paymentId: `payment_${Date.now()}`,
+			amount: 99.99,
+			reason: 'Teste de reembolso'
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			console.log('✅ Reembolso processado:', data);
+			showNotification('Reembolso processado!', 'success');
+		})
+		.catch(error => {
+			console.error('❌ Erro ao processar reembolso:', error);
+			showNotification('Erro ao processar reembolso', 'error');
+		});
+}
+
+function showNotificationStats() {
+	console.log('📊 Exibindo estatísticas de notificações');
+}
+
+function showInventoryStats() {
+	console.log('📊 Exibindo estatísticas de estoque');
+}
+
+function showNotification(message, type = 'info') {
+	const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+
+	const toast = document.createElement('div');
+	toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0`;
+	toast.setAttribute('role', 'alert');
+	toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+	toastContainer.appendChild(toast);
+
+	const bsToast = new bootstrap.Toast(toast);
+	bsToast.show();
+
+	toast.addEventListener('hidden.bs.toast', () => {
+		toast.remove();
+	});
+}
+
+function createToastContainer() {
+	const container = document.createElement('div');
+	container.id = 'toastContainer';
+	container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+	container.style.zIndex = '1055';
+	document.body.appendChild(container);
+	return container;
+}
+
+// Inicializar dashboard quando a página carregar
 let dashboard;
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', () => {
 	dashboard = new Dashboard();
+	console.log('🚀 Dashboard inicializado');
 });

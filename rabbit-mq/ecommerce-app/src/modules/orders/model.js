@@ -48,7 +48,6 @@ const orderSchema = new mongoose.Schema({
   items: [orderItemSchema],
   subtotal: {
     type: Number,
-    required: true,
     min: 0
   },
   tax: {
@@ -63,7 +62,6 @@ const orderSchema = new mongoose.Schema({
   },
   total: {
     type: Number,
-    required: true,
     min: 0
   },
   currency: {

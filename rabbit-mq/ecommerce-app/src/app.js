@@ -7,6 +7,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
+const mongoose = require('mongoose');
 
 // Import configurations
 const { connectDatabase } = require('./config/database');
@@ -14,13 +15,10 @@ const { connectRabbitMQ } = require('./config/rabbitmq');
 const logger = require('./shared/utils/logger');
 const eventBus = require('./shared/events/EventBus');
 
-// Import modules
-const OrderModule = require('./orders');
-const PaymentModule = require('./payments');
-const NotificationModule = require('./notifications');
+// Import modules  
 const ordersModule = require('./modules/orders');
-const paymentsModule = require('./modules/payments');
-const notificationsModule = require('./modules/notifications');
+const paymentsRoutes = require('./modules/payments/routes');
+const notificationsRoutes = require('./modules/notifications/routes');
 const inventoryModule = require('./modules/inventory');
 
 // Initialize Express app
@@ -50,6 +48,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // API routes
 app.use('/api/orders', ordersModule.routes);
+app.use('/api/payments', paymentsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/inventory', inventoryModule.routes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
@@ -61,7 +62,7 @@ app.get('/api/health', async (req, res) => {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       services: {
-        rabbitmq: EventBus.isConnected(),
+        rabbitmq: eventBus.getStatus().initialized,
         mongodb: mongoose.connection.readyState === 1,
         orders: ordersHealth.status === 'healthy'
       },
@@ -84,20 +85,20 @@ app.get('/api/health', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
   try {
     const ordersStats = await ordersModule.getStats();
-    const paymentsStats = await PaymentModule.healthCheck();
+    // const paymentsStats = await PaymentModule.healthCheck();
     const inventoryStats = await inventoryModule.getHealthCheck();
 
     res.json({
       success: true,
       data: {
-        totalMessages: messageLogger.getStats().totalMessages,
+        // totalMessages: messageLogger.getStats().totalMessages,
         activeOrders: ordersStats.totalOrders,
-        totalPayments: paymentsStats.metrics?.totalPayments || 0,
+        totalPayments: 0, // paymentsStats.metrics?.totalPayments || 0,
         totalProducts: inventoryStats.statistics?.totalProducts || 0,
         lowStockCount: inventoryStats.statistics?.lowStockCount || 0,
         totalNotifications: 0, // Will be implemented in next etapa
         orders: ordersStats,
-        payments: paymentsStats.metrics,
+        // payments: paymentsStats.metrics,
         inventory: inventoryStats.statistics
       },
       timestamp: new Date().toISOString()
@@ -111,7 +112,6 @@ app.get('/api/stats', async (req, res) => {
     });
   }
 });
-app.use('/api/notifications', notificationsModule.routes);
 
 // EventBus test routes
 app.use('/api/eventbus/test', require('./shared/events/testRoutes'));
@@ -334,24 +334,22 @@ async function startApplication() {
 // Initialize all modules
 async function initializeModules() {
   try {
-    // Initialize new modular architecture
-    const orderModule = await OrderModule.initialize();
-    const paymentModule = await PaymentModule.initialize();
-    const notificationModule = await NotificationModule.initialize();
-
-    // Configure routes for new modules
-    app.use('/api/orders', orderModule.routes);
-    app.use('/api/payments', paymentModule.routes);
-    app.use('/api/notifications', notificationModule.routes);
-
-    // Initialize legacy modules
+    // Initialize all modules
     await ordersModule.initialize();
-    await paymentsModule.initialize();
-    await notificationsModule.initialize();
+    // await paymentsModule.initialize(); // placeholder - no initialization needed
+    // await notificationsModule.initialize(); // placeholder - no initialization needed
 
     // Initialize inventory module
     const inventoryModuleInstance = await inventoryModule.initialize();
-    app.use(inventoryModuleInstance.basePath, inventoryModuleInstance.routes);
+
+    // Configure routes after initialization
+    app.use('/api/orders', require('./modules/orders/routes'));
+    app.use('/api/payments', require('./modules/payments/routes'));
+    app.use('/api/notifications', require('./modules/notifications/routes'));
+
+    if (inventoryModuleInstance && inventoryModuleInstance.routes) {
+      app.use('/api/inventory', inventoryModuleInstance.routes);
+    }
 
     logger.info('All modules initialized successfully');
   } catch (error) {

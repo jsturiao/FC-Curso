@@ -39,7 +39,7 @@ class OrderModule {
         await EventBus.subscribe(eventType, handler, {
           queueName: `orders.${eventType.toLowerCase().replace(/_/g, '.')}`
         });
-        
+
         logger.info(`Orders module subscribed to event: ${eventType}`);
       }
 
@@ -56,9 +56,9 @@ class OrderModule {
     try {
       // Check database connection
       const orderCount = await Order.countDocuments();
-      
+
       // Check EventBus status
-      const eventBusStatus = EventBus.isConnected();
+      const eventBusStatus = EventBus.getStatus().initialized;
 
       return {
         status: 'healthy',
@@ -75,7 +75,7 @@ class OrderModule {
 
     } catch (error) {
       logger.error('Orders module health check failed:', error);
-      
+
       return {
         status: 'unhealthy',
         initialized: this.isInitialized,
@@ -137,10 +137,10 @@ class OrderModule {
   async shutdown() {
     try {
       logger.info('Shutting down Orders Module...');
-      
+
       // Any cleanup logic can go here
       this.isInitialized = false;
-      
+
       logger.info('Orders Module shutdown complete');
     } catch (error) {
       logger.error('Error during Orders Module shutdown:', error);

@@ -1,7 +1,7 @@
 const inventoryService = require('../../../inventory/service');
 const inventoryEventSubscriber = require('../../../inventory/events/subscriber');
 const inventoryRoutes = require('../../../inventory/routes');
-const logger = require('../shared/utils/logger');
+const logger = require(require('path').join(__dirname, '../../shared/utils/logger'));
 
 class InventoryModule {
   constructor() {
@@ -201,6 +201,13 @@ class InventoryModule {
         timestamp: new Date().toISOString()
       };
     }
+  }
+
+  /**
+   * Get routes
+   */
+  get routes() {
+    return inventoryRoutes;
   }
 }
 
