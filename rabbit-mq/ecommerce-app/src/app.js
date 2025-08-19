@@ -14,12 +14,17 @@ const { connectDatabase } = require('./config/database');
 const { connectRabbitMQ } = require('./config/rabbitmq');
 const logger = require('./shared/utils/logger');
 const eventBus = require('./shared/events/EventBus');
+const dlqManager = require('./shared/events/DeadLetterQueueManager');
+const retryHandler = require('./shared/events/RetryHandler');
 
 // Import modules  
 const ordersModule = require('./modules/orders');
 const paymentsRoutes = require('./modules/payments/routes');
 const notificationsRoutes = require('./modules/notifications/routes');
 const inventoryModule = require('./modules/inventory');
+
+// Import DLQ routes
+const dlqRoutes = require('./shared/routes/dlqRoutes');
 
 // Initialize Express app
 const app = express();
@@ -51,11 +56,14 @@ app.use('/api/orders', ordersModule.routes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/inventory', inventoryModule.routes);
+app.use('/api/dlq', dlqRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
     const ordersHealth = await ordersModule.healthCheck();
+    const dlqStats = dlqManager.getDLQStats();
+    const retryStats = retryHandler.getRetryStats();
 
     res.json({
       success: true,
@@ -64,10 +72,16 @@ app.get('/api/health', async (req, res) => {
       services: {
         rabbitmq: eventBus.getStatus().initialized,
         mongodb: mongoose.connection.readyState === 1,
-        orders: ordersHealth.status === 'healthy'
+        orders: ordersHealth.status === 'healthy',
+        dlqManager: dlqManager.isReady()
       },
       modules: {
-        orders: ordersHealth
+        orders: ordersHealth,
+        dlq: {
+          totalMessages: dlqStats.total,
+          failedMessages: dlqStats.byStatus.failed || 0,
+          activeRetries: retryStats.activeRetries
+        }
       }
     });
   } catch (error) {
@@ -315,6 +329,10 @@ async function startApplication() {
     // Initialize modules
     await initializeModules();
     logger.info('✅ All modules initialized');
+
+    // Initialize DLQ Manager
+    await dlqManager.initialize();
+    logger.info('✅ Dead Letter Queue Manager initialized');
 
     // Start server
     server.listen(PORT, () => {

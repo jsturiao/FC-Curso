@@ -1,7 +1,7 @@
 const inventoryService = require('../../../inventory/service');
 const inventoryEventSubscriber = require('../../../inventory/events/subscriber');
 const inventoryRoutes = require('../../../inventory/routes');
-const logger = require(require('path').join(__dirname, '../../shared/utils/logger'));
+const logger = require('../../shared/utils/logger');
 
 class InventoryModule {
   constructor() {

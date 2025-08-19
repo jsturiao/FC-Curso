@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 Error Dashboard - DLQ Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .error-card {
+            border-left: 4px solid #dc3545;
+        }
+        .success-card {
+            border-left: 4px solid #28a745;
+        }
+        .warning-card {
+            border-left: 4px solid #ffc107;
+        }
+        .error-detail {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .status-badge {
+            font-size: 0.8em;
+        }
+        .refresh-btn {
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-danger">
+        <div class="container-fluid">
+            <span class="navbar-brand">
+                <i class="fas fa-exclamation-triangle"></i>
+                🚨 Error Dashboard - Dead Letter Queue
+            </span>
+            <div class="d-flex">
+                <button class="btn btn-outline-light btn-sm me-2" onclick="refreshData()">
+                    <i class="fas fa-sync-alt" id="refresh-icon"></i> Refresh
+                </button>
+                <a href="/" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-home"></i> Dashboard Principal
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Statistics Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-white bg-danger">
+                    <div class="card-header">
+                        <i class="fas fa-times-circle"></i> Total Failed
+                    </div>
+                    <div class="card-body">
+                        <h4 class="card-title" id="total-failed">-</h4>
+                        <p class="card-text">Messages in DLQ</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning">
+                    <div class="card-header">
+                        <i class="fas fa-redo"></i> Active Retries
+                    </div>
+                    <div class="card-body">
+                        <h4 class="card-title" id="active-retries">-</h4>
+                        <p class="card-text">Being retried</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-info">
+                    <div class="card-header">
+                        <i class="fas fa-clock"></i> Recent Errors
+                    </div>
+                    <div class="card-body">
+                        <h4 class="card-title" id="recent-errors">-</h4>
+                        <p class="card-text">Last 24 hours</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-header">
+                        <i class="fas fa-check-circle"></i> Reprocessed
+                    </div>
+                    <div class="card-body">
+                        <h4 class="card-title" id="reprocessed">-</h4>
+                        <p class="card-text">Successfully fixed</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Actions -->
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-filter"></i> Filters
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="filter-status" class="form-label">Status</label>
+                                <select class="form-select" id="filter-status" onchange="applyFilters()">
+                                    <option value="">All Status</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="reprocessing">Reprocessing</option>
+                                    <option value="reprocessed">Reprocessed</option>
+                                    <option value="reprocess_failed">Reprocess Failed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="filter-queue" class="form-label">Original Queue</label>
+                                <select class="form-select" id="filter-queue" onchange="applyFilters()">
+                                    <option value="">All Queues</option>
+                                    <option value="orders.created">Orders</option>
+                                    <option value="payments.process">Payments</option>
+                                    <option value="inventory.reserve">Inventory</option>
+                                    <option value="notifications.send">Notifications</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="filter-limit" class="form-label">Limit</label>
+                                <select class="form-select" id="filter-limit" onchange="applyFilters()">
+                                    <option value="25">25 messages</option>
+                                    <option value="50" selected>50 messages</option>
+                                    <option value="100">100 messages</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-tools"></i> Bulk Actions
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-warning btn-sm me-2" onclick="bulkReprocess()">
+                            <i class="fas fa-redo"></i> Reprocess Selected
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="bulkDelete()">
+                            <i class="fas fa-trash"></i> Delete Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages List -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list"></i> DLQ Messages</span>
+                        <span class="badge bg-secondary" id="message-count">0 messages</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="messages-container">
+                            <div class="text-center p-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <div class="mt-2">Loading DLQ messages...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Detail Modal -->
+    <div class="modal fade" id="messageModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-circle"></i> Message Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modal-content">
+                    <!-- Content will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-warning" onclick="reprocessMessage()">
+                        <i class="fas fa-redo"></i> Reprocess
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="deleteMessage()">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/dlq-dashboard.js"></script>
+</body>
+</html>

@@ -1,9 +1,25 @@
 const Order = require('../model');
 const orderPublisher = require('./publisher');
 const logger = require('../../../shared/utils/logger');
+const retryHandler = require('../../../shared/events/RetryHandler');
 const { EVENTS } = require('../../../shared/events/events');
 
 class OrderEventSubscriber {
+  /**
+   * Handle payment processed event with retry
+   */
+  async handlePaymentProcessedWithRetry(message, rawMessage) {
+    return retryHandler.processWithRetry(
+      this.handlePaymentProcessed.bind(this),
+      message,
+      {
+        queueName: 'orders.payment_processed',
+        correlationId: message.correlationId,
+        maxRetries: 3
+      }
+    );
+  }
+
   /**
    * Handle payment processed event
    */

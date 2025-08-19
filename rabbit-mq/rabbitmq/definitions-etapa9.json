@@ -1,0 +1,324 @@
+{
+  "rabbit_version": "3.12.0",
+  "rabbitmq_version": "3.12.0",
+  "product_name": "RabbitMQ",
+  "product_version": "3.12.0",
+  "users": [
+    {
+      "name": "rabbitmq",
+      "password_hash": "7iNcT7QLfY+aWZDwEjQgMF5WJtmVj5fq+Jk7pJFg+YM=",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "rabbitmq",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "topic_permissions": [],
+  "parameters": [],
+  "global_parameters": [
+    {
+      "name": "internal_cluster_id",
+      "value": "rabbitmq-cluster@localhost"
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "dlq-policy",
+      "pattern": ".*\\.queue$",
+      "apply-to": "queues",
+      "definition": {
+        "message-ttl": 300000,
+        "dead-letter-exchange": "dlx.exchange",
+        "dead-letter-routing-key": "failed"
+      },
+      "priority": 1
+    },
+    {
+      "vhost": "/",
+      "name": "retry-policy", 
+      "pattern": ".*\\.retry$",
+      "apply-to": "queues",
+      "definition": {
+        "message-ttl": 60000,
+        "dead-letter-exchange": "main.exchange"
+      },
+      "priority": 2
+    }
+  ],
+  "queues": [
+    {
+      "name": "orders.created.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "orders.status.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "payments.process.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "payments.status.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "inventory.reserve.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "inventory.release.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "notifications.send.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "notifications.email.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-dead-letter-exchange": "dlx.exchange",
+        "x-dead-letter-routing-key": "failed"
+      }
+    },
+    {
+      "name": "orders.created.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 60000,
+        "x-dead-letter-exchange": "main.exchange"
+      }
+    },
+    {
+      "name": "payments.process.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 60000,
+        "x-dead-letter-exchange": "main.exchange"
+      }
+    },
+    {
+      "name": "inventory.reserve.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 60000,
+        "x-dead-letter-exchange": "main.exchange"
+      }
+    },
+    {
+      "name": "notifications.send.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 60000,
+        "x-dead-letter-exchange": "main.exchange"
+      }
+    },
+    {
+      "name": "dlq.failed.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "main.exchange",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlx.exchange", 
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "orders.created.queue",
+      "destination_type": "queue",
+      "routing_key": "orders.created",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "orders.status.queue",
+      "destination_type": "queue",
+      "routing_key": "orders.status",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "payments.process.queue",
+      "destination_type": "queue",
+      "routing_key": "payments.process",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "payments.status.queue",
+      "destination_type": "queue",
+      "routing_key": "payments.status",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "inventory.reserve.queue",
+      "destination_type": "queue",
+      "routing_key": "inventory.reserve",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "inventory.release.queue",
+      "destination_type": "queue",
+      "routing_key": "inventory.release",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "notifications.send.queue",
+      "destination_type": "queue",
+      "routing_key": "notifications.send",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "notifications.email.queue",
+      "destination_type": "queue",
+      "routing_key": "notifications.email",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "orders.created.retry",
+      "destination_type": "queue",
+      "routing_key": "orders.created.retry",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "payments.process.retry",
+      "destination_type": "queue",
+      "routing_key": "payments.process.retry",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "inventory.reserve.retry",
+      "destination_type": "queue",
+      "routing_key": "inventory.reserve.retry",
+      "arguments": {}
+    },
+    {
+      "source": "main.exchange",
+      "vhost": "/",
+      "destination": "notifications.send.retry",
+      "destination_type": "queue",
+      "routing_key": "notifications.send.retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlx.exchange",
+      "vhost": "/",
+      "destination": "dlq.failed.queue",
+      "destination_type": "queue",
+      "routing_key": "failed",
+      "arguments": {}
+    }
+  ]
+}
