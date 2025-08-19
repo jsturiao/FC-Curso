@@ -1,5 +1,5 @@
 const Product = require('./model');
-const logger = require('../ecommerce-app/src/shared/utils/logger');
+const logger = require('../src/shared/utils/logger');
 
 class InventoryService {
 

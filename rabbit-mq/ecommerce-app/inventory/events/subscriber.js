@@ -1,8 +1,8 @@
-const EventBus = require('../../ecommerce-app/src/shared/events/EventBus');
-const { EVENTS } = require('../../ecommerce-app/src/shared/events/events');
+const EventBus = require('../../src/shared/events/EventBus');
+const { EVENTS } = require('../../src/shared/events/events');
 const inventoryService = require('../service');
 const inventoryEventPublisher = require('./publisher');
-const logger = require('../../ecommerce-app/src/shared/utils/logger');
+const logger = require('../../src/shared/utils/logger');
 
 class InventoryEventSubscriber {
   constructor() {

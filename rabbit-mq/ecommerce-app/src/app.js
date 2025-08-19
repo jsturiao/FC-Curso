@@ -55,7 +55,7 @@ app.use('/api/orders', ordersModule.routes);
 app.get('/api/health', async (req, res) => {
   try {
     const ordersHealth = await ordersModule.healthCheck();
-    
+
     res.json({
       success: true,
       status: 'healthy',
@@ -86,7 +86,7 @@ app.get('/api/stats', async (req, res) => {
     const ordersStats = await ordersModule.getStats();
     const paymentsStats = await PaymentModule.healthCheck();
     const inventoryStats = await inventoryModule.getHealthCheck();
-    
+
     res.json({
       success: true,
       data: {
@@ -112,7 +112,6 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 app.use('/api/notifications', notificationsModule.routes);
-app.use('/api/inventory', inventoryModule.routes);
 
 // EventBus test routes
 app.use('/api/eventbus/test', require('./shared/events/testRoutes'));
@@ -180,7 +179,7 @@ app.get('/', (req, res) => {
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   logger.info('Client connected to dashboard', { socketId: socket.id });
-  
+
   socket.on('disconnect', () => {
     logger.info('Client disconnected from dashboard', { socketId: socket.id });
   });
@@ -254,7 +253,7 @@ app.use('*', (req, res) => {
 // Socket.IO for real-time dashboard updates
 io.on('connection', (socket) => {
   logger.info(`Client connected: ${socket.id}`);
-  
+
   socket.on('disconnect', () => {
     logger.info(`Client disconnected: ${socket.id}`);
   });
@@ -269,12 +268,12 @@ process.on('SIGINT', gracefulShutdown);
 
 async function gracefulShutdown(signal) {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);
-  
+
   // Close server
   server.close(() => {
     logger.info('HTTP server closed');
   });
-  
+
   // Close database connection
   try {
     const mongoose = require('mongoose');
@@ -283,7 +282,7 @@ async function gracefulShutdown(signal) {
   } catch (error) {
     logger.error('Error closing database connection:', error);
   }
-  
+
   // Close RabbitMQ connection
   try {
     const { closeConnection } = require('./config/rabbitmq');
@@ -292,7 +291,7 @@ async function gracefulShutdown(signal) {
   } catch (error) {
     logger.error('Error closing RabbitMQ connection:', error);
   }
-  
+
   process.exit(0);
 }
 
@@ -300,23 +299,23 @@ async function gracefulShutdown(signal) {
 async function startApplication() {
   try {
     logger.info('Starting E-commerce RabbitMQ Application...');
-    
+
     // Connect to database
     await connectDatabase();
     logger.info('✅ Database connected');
-    
+
     // Connect to RabbitMQ
     await connectRabbitMQ();
     logger.info('✅ RabbitMQ connected');
-    
+
     // Initialize EventBus
     await eventBus.initialize();
     logger.info('✅ EventBus initialized');
-    
+
     // Initialize modules
     await initializeModules();
     logger.info('✅ All modules initialized');
-    
+
     // Start server
     server.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);
@@ -325,7 +324,7 @@ async function startApplication() {
       logger.info(`🐰 RabbitMQ Management: http://localhost:15672`);
       logger.info(`📁 Environment: ${NODE_ENV}`);
     });
-    
+
   } catch (error) {
     logger.error('Failed to start application:', error);
     process.exit(1);
@@ -339,21 +338,21 @@ async function initializeModules() {
     const orderModule = await OrderModule.initialize();
     const paymentModule = await PaymentModule.initialize();
     const notificationModule = await NotificationModule.initialize();
-    
+
     // Configure routes for new modules
     app.use('/api/orders', orderModule.routes);
     app.use('/api/payments', paymentModule.routes);
     app.use('/api/notifications', notificationModule.routes);
-    
+
     // Initialize legacy modules
     await ordersModule.initialize();
     await paymentsModule.initialize();
     await notificationsModule.initialize();
-    
+
     // Initialize inventory module
     const inventoryModuleInstance = await inventoryModule.initialize();
     app.use(inventoryModuleInstance.basePath, inventoryModuleInstance.routes);
-    
+
     logger.info('All modules initialized successfully');
   } catch (error) {
     logger.error('Error initializing modules:', error);
