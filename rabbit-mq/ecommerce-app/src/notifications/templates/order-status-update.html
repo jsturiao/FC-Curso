@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Status Update</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .status-timeline {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .status-step {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status-step.active {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .status-step.pending {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .status-step.future {
+            background-color: #e2e3e5;
+            border-left: 4px solid #6c757d;
+        }
+        .status-icon {
+            font-size: 1.5em;
+            margin-right: 15px;
+            width: 30px;
+        }
+        .tracking-box {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .update-icon {
+            font-size: 3em;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="update-icon">📦</div>
+            <h1>Order Status Update</h1>
+            <p>Order #{{orderId}} - {{status}}</p>
+        </div>
+
+        <div class="content">
+            <p>Hi {{customerName}},</p>
+            <p>{{statusMessage}} ({{updateDate}}).</p>
+
+            <div class="status-timeline">
+                <h3>Order Progress</h3>
+                
+                <div class="status-step active">
+                    <div class="status-icon">✅</div>
+                    <div>
+                        <strong>Order Placed</strong><br>
+                        <small>Your order has been received and confirmed</small>
+                    </div>
+                </div>
+
+                <div class="status-step {{#if (eq status 'confirmed')}}active{{else}}{{#if (eq status 'processing')}}active{{else}}{{#if (eq status 'shipped')}}active{{else}}{{#if (eq status 'delivered')}}active{{else}}pending{{/if}}{{/if}}{{/if}}{{/if}}">
+                    <div class="status-icon">🔄</div>
+                    <div>
+                        <strong>Processing</strong><br>
+                        <small>We're preparing your items for shipment</small>
+                    </div>
+                </div>
+
+                <div class="status-step {{#if (eq status 'shipped')}}active{{else}}{{#if (eq status 'delivered')}}active{{else}}future{{/if}}{{/if}}">
+                    <div class="status-icon">🚚</div>
+                    <div>
+                        <strong>Shipped</strong><br>
+                        <small>Your order is on its way to you</small>
+                    </div>
+                </div>
+
+                <div class="status-step {{#if (eq status 'delivered')}}active{{else}}future{{/if}}">
+                    <div class="status-icon">🏠</div>
+                    <div>
+                        <strong>Delivered</strong><br>
+                        <small>Your order has been delivered</small>
+                    </div>
+                </div>
+            </div>
+
+            {{#if trackingNumber}}
+            <div class="tracking-box">
+                <h3>📍 Track Your Package</h3>
+                <p><strong>Tracking Number:</strong> {{trackingNumber}}</p>
+                <a href="{{trackingUrl}}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Track Package</a>
+            </div>
+            {{/if}}
+
+            <h3>Order Details</h3>
+            <p><strong>Order Number:</strong> #{{orderId}}</p>
+            <p><strong>Current Status:</strong> {{status}}</p>
+            <p><strong>Last Updated:</strong> {{updateDate}}</p>
+
+            {{#if (eq status 'delivered')}}
+            <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3>🎉 Delivery Complete!</h3>
+                <p>Your order has been successfully delivered. We hope you love your purchase!</p>
+                <p>Please consider leaving a review to help other customers.</p>
+            </div>
+            {{/if}}
+
+            {{#if (eq status 'cancelled')}}
+            <div style="background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3>❌ Order Cancelled</h3>
+                <p>Your order has been cancelled. If you paid for this order, your refund will be processed within 3-5 business days.</p>
+            </div>
+            {{/if}}
+
+            <h3>Questions?</h3>
+            <p>If you have any questions about your order, please don't hesitate to contact us:</p>
+            <ul>
+                <li>📧 Email: support@ecommerce.local</li>
+                <li>📞 Phone: +1 (555) 123-4567</li>
+                <li>💬 Live Chat: Available 24/7</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Thank you for choosing our store!</p>
+            <p><small>This is an automated update. Please do not reply to this email.</small></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Failed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .error-details {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+        }
+        .btn-retry {
+            background-color: #28a745;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .error-icon {
+            font-size: 3em;
+            color: white;
+        }
+        .help-section {
+            background-color: #e2e3e5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="error-icon">❌</div>
+            <h1>Payment Failed</h1>
+            <p>We couldn't process your payment</p>
+        </div>
+
+        <div class="content">
+            <p>Hi {{customerName}},</p>
+            <p>We're sorry, but we were unable to process your payment for order #{{orderId}}.</p>
+
+            <div class="error-details">
+                <h3>Payment Information</h3>
+                <p><strong>Order Number:</strong> #{{orderId}}</p>
+                <p><strong>Payment Method:</strong> {{paymentMethod}}</p>
+                <p><strong>Amount:</strong> {{currency}} {{amount}}</p>
+                <p><strong>Date:</strong> {{paymentDate}}</p>
+            </div>
+
+            <h3>What Happened?</h3>
+            <p>Payment failures can occur for several reasons:</p>
+            <ul>
+                <li>💳 Insufficient funds in your account</li>
+                <li>🔒 Your bank blocked the transaction for security reasons</li>
+                <li>📋 Incorrect payment information</li>
+                <li>🏦 Temporary issue with your bank or card issuer</li>
+                <li>🌐 Network connectivity issues</li>
+            </ul>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{retryPaymentUrl}}" class="btn btn-retry">Try Payment Again</a>
+                <a href="{{updatePaymentUrl}}" class="btn">Update Payment Method</a>
+            </div>
+
+            <div class="help-section">
+                <h3>💡 What You Can Do</h3>
+                <ol>
+                    <li><strong>Check your payment details:</strong> Ensure your card information is correct</li>
+                    <li><strong>Contact your bank:</strong> They may have blocked the transaction</li>
+                    <li><strong>Try a different payment method:</strong> Use another card or payment option</li>
+                    <li><strong>Wait and retry:</strong> Sometimes temporary issues resolve themselves</li>
+                </ol>
+            </div>
+
+            <h3>Need Help?</h3>
+            <p>Our customer support team is here to help you complete your purchase:</p>
+            <ul>
+                <li>📧 Email: support@ecommerce.local</li>
+                <li>📞 Phone: +1 (555) 123-4567</li>
+                <li>💬 Live Chat: Available 24/7 on our website</li>
+            </ul>
+
+            <p><strong>Don't worry!</strong> Your order is still reserved for you. You have 24 hours to complete the payment before it expires.</p>
+        </div>
+
+        <div class="footer">
+            <p>We're sorry for the inconvenience and appreciate your patience.</p>
+            <p><small>This is an automated message. Please do not reply to this email.</small></p>
+        </div>
+    </div>
+</body>
+</html>

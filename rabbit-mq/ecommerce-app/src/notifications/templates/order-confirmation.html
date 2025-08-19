@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .order-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .total {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #28a745;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success-icon {
+            font-size: 3em;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="success-icon">✅</div>
+            <h1>Order Confirmed!</h1>
+            <p>Thank you for your purchase, {{customerName}}!</p>
+        </div>
+
+        <div class="content">
+            <p>Hi {{customerName}},</p>
+            <p>Great news! Your order has been confirmed and is being processed.</p>
+
+            <div class="order-details">
+                <h3>Order Details</h3>
+                <p><strong>Order Number:</strong> #{{orderId}}</p>
+                <p><strong>Order Date:</strong> {{orderDate}}</p>
+                <p><strong>Estimated Delivery:</strong> {{estimatedDelivery}}</p>
+
+                <h4>Items Ordered:</h4>
+                {{#each items}}
+                <div class="item-row">
+                    <div>
+                        <strong>{{name}}</strong><br>
+                        <small>Quantity: {{quantity}}</small>
+                    </div>
+                    <div>{{currency}} {{price}}</div>
+                </div>
+                {{/each}}
+
+                <div class="item-row total">
+                    <div>Total Amount:</div>
+                    <div>{{currency}} {{total}}</div>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{trackOrderUrl}}" class="btn">Track Your Order</a>
+            </div>
+
+            <h3>What's Next?</h3>
+            <ul>
+                <li>📦 We're preparing your items for shipment</li>
+                <li>📧 You'll receive a shipping confirmation with tracking details</li>
+                <li>🚚 Your order will be delivered within {{estimatedDelivery}}</li>
+            </ul>
+
+            <h3>Need Help?</h3>
+            <p>If you have any questions about your order, please don't hesitate to contact us:</p>
+            <ul>
+                <li>📧 Email: support@ecommerce.local</li>
+                <li>📞 Phone: +1 (555) 123-4567</li>
+                <li>💬 Live Chat: Available 24/7 on our website</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Thank you for choosing our store!</p>
+            <p><small>This is an automated message. Please do not reply to this email.</small></p>
+        </div>
+    </div>
+</body>
+</html>

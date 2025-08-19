@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Successful</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .payment-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .amount {
+            font-weight: bold;
+            font-size: 1.3em;
+            color: #28a745;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .success-icon {
+            font-size: 3em;
+            color: white;
+        }
+        .security-note {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #2196f3;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="success-icon">💳</div>
+            <h1>Payment Successful!</h1>
+            <p>Your payment has been processed successfully</p>
+        </div>
+
+        <div class="content">
+            <p>Hi {{customerName}},</p>
+            <p>Great news! Your payment has been successfully processed for order #{{orderId}}.</p>
+
+            <div class="payment-details">
+                <h3>Payment Details</h3>
+                <div class="detail-row">
+                    <span>Payment ID:</span>
+                    <span>{{paymentId}}</span>
+                </div>
+                <div class="detail-row">
+                    <span>Order Number:</span>
+                    <span>#{{orderId}}</span>
+                </div>
+                <div class="detail-row">
+                    <span>Payment Method:</span>
+                    <span>{{paymentMethod}}</span>
+                </div>
+                <div class="detail-row">
+                    <span>Payment Date:</span>
+                    <span>{{paymentDate}}</span>
+                </div>
+                <div class="detail-row amount">
+                    <span>Amount Charged:</span>
+                    <span>{{currency}} {{amount}}</span>
+                </div>
+            </div>
+
+            <div class="security-note">
+                <h4>🔒 Security Notice</h4>
+                <p>Your payment information is secure and encrypted. We never store your full credit card details on our servers.</p>
+            </div>
+
+            <h3>What's Next?</h3>
+            <p>{{nextSteps}}</p>
+
+            <ul>
+                <li>📦 Your order is now being prepared for shipment</li>
+                <li>📧 You'll receive shipping updates via email and SMS</li>
+                <li>📋 You can track your order status in your account</li>
+            </ul>
+
+            <h3>Questions About Your Payment?</h3>
+            <p>If you have any questions about this payment or need a receipt, please contact us:</p>
+            <ul>
+                <li>📧 Email: billing@ecommerce.local</li>
+                <li>📞 Phone: +1 (555) 123-4567</li>
+                <li>💬 Live Chat: Available 24/7</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p><small>This is an automated payment confirmation. Please keep this email for your records.</small></p>
+        </div>
+    </div>
+</body>
+</html>
