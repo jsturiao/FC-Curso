@@ -252,11 +252,11 @@ class MessageLogger extends EventEmitter {
 
         // Failed messages
         MessageLog.aggregate([
-          { 
-            $match: { 
+          {
+            $match: {
               timestamp: { $gte: startDate },
               action: 'FAILED'
-            } 
+            }
           },
           { $group: { _id: '$routingKey', count: { $sum: 1 } } },
           { $sort: { count: -1 } }
@@ -339,17 +339,26 @@ class MessageLogger extends EventEmitter {
 
     // Remove sensitive fields if they exist
     const sensitiveFields = ['password', 'creditCard', 'ssn', 'token'];
-    
+    const visited = new WeakSet(); // Track visited objects to prevent infinite recursion
+
     function removeSensitiveFields(obj) {
       if (typeof obj !== 'object' || obj === null) return obj;
 
+      // Prevent infinite recursion with circular references
+      if (visited.has(obj)) return obj;
+      visited.add(obj);
+
       for (const key in obj) {
-        if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
-          obj[key] = '[REDACTED]';
-        } else if (typeof obj[key] === 'object') {
-          removeSensitiveFields(obj[key]);
+        if (obj.hasOwnProperty(key)) {
+          if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+            obj[key] = '[REDACTED]';
+          } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            removeSensitiveFields(obj[key]);
+          }
         }
       }
+
+      return obj;
     }
 
     removeSensitiveFields(sanitized);

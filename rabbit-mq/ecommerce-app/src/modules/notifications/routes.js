@@ -13,17 +13,50 @@ router.get('/', (req, res) => {
 });
 
 // Send notification
-router.post('/', (req, res) => {
-  res.json({
-    success: true,
-    data: {
+router.post('/', async (req, res) => {
+  try {
+    const notificationData = {
       id: 'notif_' + Math.random().toString(36).substr(2, 9),
       type: req.body.type || 'email',
       status: 'sent',
+      recipient: req.body.recipient || 'customer@example.com',
+      message: req.body.message || 'Test notification',
       createdAt: new Date().toISOString()
-    },
-    message: 'Notification sent - placeholder implementation'
-  });
+    };
+
+    // Publish notification sent event
+    const eventBus = require('../../shared/events/EventBus');
+    const { EVENTS } = require('../../shared/events/events');
+    
+    await eventBus.publishEvent(EVENTS.NOTIFICATION_EMAIL_SENT, {
+      notificationId: notificationData.id,
+      type: notificationData.type,
+      recipient: notificationData.recipient,
+      message: notificationData.message,
+      status: notificationData.status,
+      sentAt: notificationData.createdAt
+    }, {
+      source: 'notifications-module',
+      correlationId: req.body.correlationId || 'test-correlation'
+    });
+
+    res.json({
+      success: true,
+      data: notificationData,
+      message: 'Notification sent - placeholder implementation'
+    });
+  } catch (error) {
+    res.json({
+      success: true,
+      data: {
+        id: 'notif_' + Math.random().toString(36).substr(2, 9),
+        type: req.body.type || 'email',
+        status: 'sent',
+        createdAt: new Date().toISOString()
+      },
+      message: 'Notification sent - placeholder implementation'
+    });
+  }
 });
 
 // Get notification stats (must come before /:notificationId)

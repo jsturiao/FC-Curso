@@ -113,11 +113,18 @@ class Dashboard {
 			orders: document.getElementById('ordersStatus')
 		};
 
+		// O health check retorna dados em data.services
+		const services = data.services || {};
+
 		Object.keys(statusElements).forEach(service => {
 			const element = statusElements[service];
 			if (!element) return;
 
-			const isOnline = data[service] === 'online' || data[service] === true;
+			// Mapear os nomes dos serviços corretamente
+			let serviceKey = service;
+			if (service === 'mongo') serviceKey = 'mongodb';
+
+			const isOnline = services[serviceKey] === true || services[serviceKey] === 'online';
 
 			if (isOnline) {
 				element.className = 'badge bg-success';

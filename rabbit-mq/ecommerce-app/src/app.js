@@ -253,7 +253,29 @@ io.on('connection', (socket) => {
 
 // Setup message broadcasting to dashboard
 messageLogger.on('message-logged', (message) => {
-  io.emit('message', message);
+  // Emit generic message event
+  io.emit('message_received', message);
+  
+  // Emit specific events based on exchange and routing key
+  if (message.exchange === 'orders' || message.eventType.includes('order')) {
+    if (message.eventType.includes('created')) {
+      io.emit('order_created', message);
+    } else if (message.eventType.includes('updated')) {
+      io.emit('order_updated', message);
+    }
+  }
+  
+  if (message.exchange === 'payments' || message.eventType.includes('payment')) {
+    io.emit('payment_processed', message);
+  }
+  
+  if (message.exchange === 'notifications' || message.eventType.includes('notification')) {
+    io.emit('notification_sent', message);
+  }
+  
+  if (message.exchange === 'inventory' || message.eventType.includes('inventory')) {
+    io.emit('inventory_updated', message);
+  }
 });
 
 // Broadcast stats every 30 seconds

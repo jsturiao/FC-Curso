@@ -11,6 +11,7 @@ const EVENTS = {
   // Payment Events
   PAYMENT_REQUESTED: 'payment.requested',
   PAYMENT_PROCESSING: 'payment.processing',
+  PAYMENT_PROCESSED: 'payment.processed',
   PAYMENT_SUCCEEDED: 'payment.succeeded',
   PAYMENT_FAILED: 'payment.failed',
   PAYMENT_REFUNDED: 'payment.refunded',
