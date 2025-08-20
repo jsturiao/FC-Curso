@@ -40,7 +40,9 @@ services:
       retries: 3
 
   ecommerce-app:
-    build: ./ecommerce-app
+    build: 
+      context: ./ecommerce-app
+      dockerfile: Dockerfile
     container_name: ecommerce-app
     ports:
       - "3000:3000"     # Web interface
@@ -51,6 +53,10 @@ services:
       MONGODB_URL: mongodb://admin:admin123@mongodb:27017/ecommerce?authSource=admin
       PORT: 3000
       API_PORT: 3001
+    volumes:
+      - ./ecommerce-app:/app                    # Monta código da aplicação
+      - ./inventory:/app/src/modules/inventory  # Monta módulo inventory
+      - /app/node_modules                       # Preserva node_modules do container
     networks:
       - ecommerce-network
     depends_on:

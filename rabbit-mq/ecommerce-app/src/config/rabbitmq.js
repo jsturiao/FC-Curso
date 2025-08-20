@@ -87,17 +87,36 @@ async function closeConnection() {
   try {
     if (channel) {
       await channel.close();
+      channel = null;
       logger.info('RabbitMQ channel closed');
     }
     
     if (connection) {
       await connection.close();
+      connection = null;
       logger.info('RabbitMQ connection closed');
     }
   } catch (error) {
     logger.error('Error closing RabbitMQ connection:', error);
     throw error;
   }
+}
+
+function isConnected() {
+  return connection !== null && !connection.connection.stream.destroyed;
+}
+
+function getConnectionStatus() {
+  if (!connection) {
+    return { connected: false, status: 'disconnected' };
+  }
+  
+  const isAlive = !connection.connection.stream.destroyed;
+  return {
+    connected: isAlive,
+    status: isAlive ? 'connected' : 'disconnected',
+    serverProperties: connection.connection.serverProperties
+  };
 }
 
 // Utility function to publish messages
@@ -176,6 +195,8 @@ module.exports = {
   getChannel,
   getConnection,
   closeConnection,
+  isConnected,
+  getConnectionStatus,
   publishMessage,
   subscribeToQueue
 };

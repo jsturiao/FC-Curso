@@ -3,14 +3,14 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-    # Install dependencies first (for better caching)
-    COPY package*.json ./
-    RUN npm install
+# Install dependencies first (for better caching)
+COPY package*.json ./
+RUN npm install
 
-    # Copy application code
-    COPY . .
+# Copy application code
+COPY . .
 
-    # Create non-root user
+# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 

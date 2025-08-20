@@ -1,7 +1,7 @@
 const inventoryService = require('./service');
 const inventoryEventSubscriber = require('./events/subscriber');
 const inventoryRoutes = require('./routes');
-const logger = require('../shared/logger');
+const logger = require('../../shared/utils/logger');
 
 class InventoryModule {
   constructor() {
@@ -20,7 +20,7 @@ class InventoryModule {
 
       this.isInitialized = true;
       logger.info('✅ Inventory Module initialized successfully', { module: 'inventory' });
-      
+
       return {
         routes: inventoryRoutes,
         basePath: '/api'
@@ -34,7 +34,7 @@ class InventoryModule {
   async createSampleProducts() {
     try {
       const existingProducts = await inventoryService.getProducts();
-      
+
       if (existingProducts.length === 0) {
         logger.info('Creating sample products...', { module: 'inventory' });
 
@@ -144,9 +144,9 @@ class InventoryModule {
         for (const productData of sampleProducts) {
           try {
             await inventoryService.createProduct(productData);
-            logger.info(`Sample product created: ${productData.name}`, { 
+            logger.info(`Sample product created: ${productData.name}`, {
               productId: productData.id,
-              module: 'inventory' 
+              module: 'inventory'
             });
           } catch (error) {
             logger.error(`Failed to create sample product: ${productData.name}`, error);
@@ -155,8 +155,8 @@ class InventoryModule {
 
         logger.info(`✅ Created ${sampleProducts.length} sample products`, { module: 'inventory' });
       } else {
-        logger.info(`Found ${existingProducts.length} existing products, skipping sample creation`, { 
-          module: 'inventory' 
+        logger.info(`Found ${existingProducts.length} existing products, skipping sample creation`, {
+          module: 'inventory'
         });
       }
     } catch (error) {
@@ -176,7 +176,7 @@ class InventoryModule {
     try {
       const stats = await inventoryService.getInventoryStats();
       const lowStockProducts = await inventoryService.getLowStockProducts();
-      
+
       return {
         module: 'inventory',
         status: 'healthy',
@@ -201,6 +201,13 @@ class InventoryModule {
         timestamp: new Date().toISOString()
       };
     }
+  }
+
+  /**
+   * Get routes
+   */
+  get routes() {
+    return inventoryRoutes;
   }
 }
 

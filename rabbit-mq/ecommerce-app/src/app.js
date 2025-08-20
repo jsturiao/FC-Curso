@@ -42,7 +42,49 @@ const API_PORT = process.env.API_PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Global middleware
-app.use(helmet());
+// Para desenvolvimento, desabilitamos completamente o helmet CSP
+if (NODE_ENV === 'development') {
+  // Sem helmet CSP em desenvolvimento para evitar problemas
+  app.use((req, res, next) => {
+    // Remove qualquer header CSP que possa existir
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('Content-Security-Policy-Report-Only');
+    next();
+  });
+} else {
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "'unsafe-hashes'",
+          "https://cdn.jsdelivr.net",
+          "https://cdnjs.cloudflare.com"
+        ],
+        scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"],
+        scriptSrcElem: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://cdn.jsdelivr.net",
+          "https://cdnjs.cloudflare.com"
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        fontSrc: [
+          "'self'",
+          "https://fonts.gstatic.com",
+          "https://cdn.jsdelivr.net"
+        ],
+        connectSrc: ["'self'", "ws:", "wss:"],
+        imgSrc: ["'self'", "data:", "https:"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: []
+      }
+    }
+  }));
+}
 app.use(cors());
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 app.use(express.json({ limit: '10mb' }));
@@ -61,17 +103,21 @@ app.use('/api/dlq', dlqRoutes);
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
+    const { isConnected, getConnectionStatus } = require('./config/rabbitmq');
     const ordersHealth = await ordersModule.healthCheck();
     const dlqStats = dlqManager.getDLQStats();
     const retryStats = retryHandler.getRetryStats();
+
+    const rabbitmqStatus = getConnectionStatus();
+    const mongoStatus = mongoose.connection.readyState === 1;
 
     res.json({
       success: true,
       status: 'healthy',
       timestamp: new Date().toISOString(),
       services: {
-        rabbitmq: eventBus.getStatus().initialized,
-        mongodb: mongoose.connection.readyState === 1,
+        rabbitmq: rabbitmqStatus.connected,
+        mongodb: mongoStatus,
         orders: ordersHealth.status === 'healthy',
         dlqManager: dlqManager.isReady()
       },
@@ -81,6 +127,12 @@ app.get('/api/health', async (req, res) => {
           totalMessages: dlqStats.total,
           failedMessages: dlqStats.byStatus.failed || 0,
           activeRetries: retryStats.activeRetries
+        },
+        rabbitmq: rabbitmqStatus,
+        mongodb: {
+          connected: mongoStatus,
+          readyState: mongoose.connection.readyState,
+          state: mongoose.STATES[mongoose.connection.readyState]
         }
       }
     });

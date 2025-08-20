@@ -21,33 +21,21 @@ router.get('/inventory/stats', inventoryController.getInventoryStats);
 
 // Additional routes for testing compatibility
 router.get('/stats', inventoryController.getInventoryStats); // Alias for inventory/stats
-
-// Stock operations (simplified for testing)
 router.post('/stock/add', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      productId: req.body.productId || 'prod_test',
-      quantity: req.body.quantity || 10,
-      newStock: 100,
-      operation: 'stock-add',
-      timestamp: new Date().toISOString()
-    },
-    message: 'Stock added successfully (test implementation)'
+  res.status(501).json({
+    success: false,
+    message: 'Stock management functionality will be implemented in next stages',
+    feature: 'stock-add',
+    status: 'not-implemented'
   });
 });
 
 router.post('/stock/reserve', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      productId: req.body.productId || 'prod_test',
-      quantity: req.body.quantity || 1,
-      reservationId: 'res_' + Math.random().toString(36).substr(2, 9),
-      operation: 'stock-reserve',
-      timestamp: new Date().toISOString()
-    },
-    message: 'Stock reserved successfully (test implementation)'
+  res.status(501).json({
+    success: false,
+    message: 'Stock reservation functionality will be implemented in next stages',
+    feature: 'stock-reserve',
+    status: 'not-implemented'
   });
 });
 

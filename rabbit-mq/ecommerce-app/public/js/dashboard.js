@@ -394,12 +394,22 @@ function createTestOrder() {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
-			userId: `user_${Date.now()}`,
+			customerId: `customer_${Date.now()}`,
+			customerEmail: `test${Date.now()}@example.com`,
 			items: [
-				{ productId: 'product_001', quantity: 2, price: 29.99 },
-				{ productId: 'product_002', quantity: 1, price: 19.99 }
-			],
-			amount: 79.97
+				{ 
+					productId: 'prod_laptop_001', 
+					productName: 'Gaming Laptop Pro',
+					quantity: 1, 
+					unitPrice: 1299.99 
+				},
+				{ 
+					productId: 'prod_phone_001', 
+					productName: 'Smartphone X',
+					quantity: 1, 
+					unitPrice: 899.99 
+				}
+			]
 		})
 	})
 		.then(response => response.json())
