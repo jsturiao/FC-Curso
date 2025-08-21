@@ -97,7 +97,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/orders', ordersModule.routes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/notifications', notificationsRoutes);
-app.use('/api/inventory', inventoryModule.routes);
+// Note: inventory routes are configured after module initialization (see line ~450)
 app.use('/api/dlq', dlqRoutes);
 
 // Health check endpoint
