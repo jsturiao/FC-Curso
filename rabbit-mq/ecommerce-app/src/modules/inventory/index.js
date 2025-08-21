@@ -202,6 +202,12 @@ class InventoryModule {
       };
     }
   }
+  /**
+   * Get routes
+   */
+  get routes() {
+    return inventoryRoutes;
+  }
 }
 
 module.exports = new InventoryModule();

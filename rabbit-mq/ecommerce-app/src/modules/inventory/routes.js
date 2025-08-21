@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const inventoryController = require('./controller');
+const logger = require('../../shared/utils/logger');
 
-console.log('🎯 [INVENTORY] Routes file loaded - this should appear in logs!');
+logger.info('🎯 [INVENTORY] Routes file loaded - this should appear in logs!', { module: 'inventory' });
 
 // Product management routes
 router.get('/products', inventoryController.getProducts);
@@ -23,12 +24,20 @@ router.get('/inventory/stats', inventoryController.getInventoryStats);
 
 // Additional routes for testing compatibility
 router.get('/stats', inventoryController.getInventoryStats); // Alias for inventory/stats
+
+// DEBUG TEST ROUTE
+router.get('/debug-test', (req, res) => {
+  logger.info('🎯 [INVENTORY] DEBUG TEST ROUTE CALLED!', { module: 'inventory' });
+  console.log('🎯 [INVENTORY] CONSOLE LOG TEST!');
+  res.json({ message: 'Debug test route working', timestamp: new Date().toISOString() });
+});
+
 router.post('/stock/add', async (req, res) => {
-  console.log('🚀 [INVENTORY] Route /stock/add called');
-  
+  logger.info('🚀 [INVENTORY] Route /stock/add called', { module: 'inventory' });
+
   try {
-    console.log('🔍 [INVENTORY] Starting stock/add operation');
-    
+    logger.info('🔍 [INVENTORY] Starting stock/add operation', { module: 'inventory' });
+
     const stockData = {
       productId: req.body.productId || 'prod_test',
       quantity: req.body.quantity || 10,
@@ -37,20 +46,33 @@ router.post('/stock/add', async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
-    console.log('🔍 [INVENTORY] Stock data prepared:', JSON.stringify(stockData));
+    logger.info('🔍 [INVENTORY] Stock data prepared', {
+      module: 'inventory',
+      stockData: JSON.stringify(stockData)
+    });
 
     try {
       // Publish inventory updated event
-      console.log('🔍 [INVENTORY] About to require EventBus...');
+      logger.info('🔍 [INVENTORY] About to require EventBus...', { module: 'inventory' });
       const eventBus = require('../../shared/events/EventBus');
-      console.log('🔍 [INVENTORY] EventBus required successfully');
-      
-      console.log('🔍 [INVENTORY] About to require EVENTS...');
+
+      // Check if EventBus is initialized
+      if (!eventBus.isInitialized) {
+        logger.warn('⚠️ [INVENTORY] EventBus not initialized, skipping event publication', { module: 'inventory' });
+        throw new Error('EventBus not initialized');
+      }
+
+      logger.info('🔍 [INVENTORY] EventBus is initialized', { module: 'inventory' });
+
+      logger.info('🔍 [INVENTORY] About to require EVENTS...', { module: 'inventory' });
       const { EVENTS } = require('../../shared/events/events');
-      console.log('🔍 [INVENTORY] EVENTS required successfully, INVENTORY_UPDATED:', EVENTS.INVENTORY_UPDATED);
-      
-      console.log('🔍 [INVENTORY] About to publish event...');
-      
+      logger.info('🔍 [INVENTORY] EVENTS required successfully', {
+        module: 'inventory',
+        event: EVENTS.INVENTORY_UPDATED
+      });
+
+      logger.info('🔍 [INVENTORY] About to publish event...', { module: 'inventory' });
+
       const eventData = {
         productId: stockData.productId,
         operation: stockData.operation,
@@ -58,21 +80,31 @@ router.post('/stock/add', async (req, res) => {
         newStock: stockData.newStock,
         timestamp: stockData.timestamp
       };
-      
+
       const metadata = {
         source: 'inventory-module',
         correlationId: req.body.correlationId || 'test-correlation'
       };
-      
-      console.log('🔍 [INVENTORY] Event data:', JSON.stringify(eventData));
-      console.log('🔍 [INVENTORY] Event metadata:', JSON.stringify(metadata));
-      
+
+      logger.info('🔍 [INVENTORY] Event data', {
+        module: 'inventory',
+        eventData: JSON.stringify(eventData)
+      });
+      logger.info('🔍 [INVENTORY] Event metadata', {
+        module: 'inventory',
+        metadata: JSON.stringify(metadata)
+      });
+
       await eventBus.publishEvent(EVENTS.INVENTORY_UPDATED, eventData, metadata);
-      
-      console.log('✅ [INVENTORY] Event published successfully');
-      
+
+      logger.info('✅ [INVENTORY] Event published successfully', { module: 'inventory' });
+
     } catch (eventError) {
-      console.error('❌ [INVENTORY] Error publishing event:', eventError);
+      logger.error('❌ [INVENTORY] Error publishing event', {
+        module: 'inventory',
+        error: eventError.message,
+        stack: eventError.stack
+      });
       throw eventError;
     }
 
@@ -81,13 +113,16 @@ router.post('/stock/add', async (req, res) => {
       data: stockData,
       message: 'Stock added successfully (test implementation)'
     });
-    
-    console.log('✅ [INVENTORY] Response sent successfully');
-    
+
+    logger.info('✅ [INVENTORY] Response sent successfully', { module: 'inventory' });
+
   } catch (error) {
-    console.error('❌ [INVENTORY] Error in stock/add:', error);
-    console.error('❌ [INVENTORY] Error stack:', error.stack);
-    
+    logger.error('❌ [INVENTORY] Error in stock/add', {
+      module: 'inventory',
+      error: error.message,
+      stack: error.stack
+    });
+
     res.json({
       success: true,
       data: {
@@ -100,7 +135,7 @@ router.post('/stock/add', async (req, res) => {
       message: 'Stock added successfully (test implementation) - but event failed'
     });
   }
-});router.post('/stock/reserve', async (req, res) => {
+}); router.post('/stock/reserve', async (req, res) => {
   try {
     const reservationData = {
       productId: req.body.productId || 'prod_test',

@@ -97,7 +97,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/orders', ordersModule.routes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/notifications', notificationsRoutes);
-// Note: inventory routes are configured after module initialization (see line ~450)
+app.use('/api/inventory', inventoryModule.routes);
 app.use('/api/dlq', dlqRoutes);
 
 // Health check endpoint
@@ -263,7 +263,7 @@ messageLogger.on('message-logged', (message) => {
 
   // Emit generic message event
   io.emit('message_received', dashboardMessage);
-  
+
   // Emit specific events based on exchange and routing key
   if (message.exchange === 'ecommerce.events' || message.eventType.includes('order')) {
     if (message.eventType.includes('created')) {
@@ -272,15 +272,15 @@ messageLogger.on('message-logged', (message) => {
       io.emit('order_updated', dashboardMessage);
     }
   }
-  
+
   if (message.exchange === 'ecommerce.payments' || message.eventType.includes('payment')) {
     io.emit('payment_processed', dashboardMessage);
   }
-  
+
   if (message.exchange === 'ecommerce.notifications' || message.eventType.includes('notification')) {
     io.emit('notification_sent', dashboardMessage);
   }
-  
+
   if (message.exchange === 'ecommerce.inventory' || message.eventType.includes('inventory')) {
     io.emit('inventory_updated', dashboardMessage);
   }
@@ -441,15 +441,6 @@ async function initializeModules() {
 
     // Initialize inventory module
     const inventoryModuleInstance = await inventoryModule.initialize();
-
-    // Configure routes after initialization
-    app.use('/api/orders', require('./modules/orders/routes'));
-    app.use('/api/payments', require('./modules/payments/routes'));
-    app.use('/api/notifications', require('./modules/notifications/routes'));
-
-    if (inventoryModuleInstance && inventoryModuleInstance.routes) {
-      app.use('/api/inventory', inventoryModuleInstance.routes);
-    }
 
     logger.info('All modules initialized successfully');
   } catch (error) {
